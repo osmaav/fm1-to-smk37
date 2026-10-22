@@ -1,3 +1,5 @@
+<!-- Русская версия: 1.0.0 (22.10.2026). Локализация репозитория fm1-to-smk37; при изменении обновляйте версию по SemVer. -->
+
 # 07: Develop for both boards
 
 A port is easy to keep alive when one source tree builds the FM-1 and the SMK-37, and new features land on

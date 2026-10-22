@@ -1,3 +1,4 @@
+# Русская версия: 1.0.0 (22.10.2026). При изменении обновляйте версию по SemVer.
 # ChoralRoot (an Orchid-style chord instrument, a Felucca fork from a copied tree near 1.0.4) on the SMK-37, as an
 # upstream PR. A full fork with its own UI (cr_ui.c), its own boot stub in front of the app and a commit marker
 # (docs/BOOT-SAFETY.md), 19 stored objects plus loop slots. Controls: SMK37.md on the branch smk37.

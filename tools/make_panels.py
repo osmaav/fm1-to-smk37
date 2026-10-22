@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Draw the SMK-37 Pro panel diagrams used by docs/06-mapping-patterns.md.
+"""Русская версия: 1.0.0 (22.10.2026).
+Рисование схем панели SMK-37 Pro для docs/06-mapping-patterns.md.
 
     python tools/make_panels.py [--bare] [OUTDIR]      (default: assets/panel)
 
@@ -13,11 +14,11 @@ from xml.sax.saxutils import escape
 
 BG, BODY, DIM, DIMF, INK, MUTED = "#04060c", "#1d3550", "#2a3a52", "#0a1220", "#dff8ff", "#7f9bb0"
 CY, MG, AM = "#3cf0ff", "#ff3cd2", "#ffb02a"
-TRK = ["#287cff", "#1ecc70", "#ffc618", "#ff621a"]           # the screen's track colours (SLOOP on the SMK-37)
+TRK = ["#287cff", "#1ecc70", "#ffc618", "#ff621a"]           # цвета дорожек экрана (SLOOP на SMK-37)
 FONT = "JetBrains Mono, Consolas, Menlo, monospace"
 
-SW = 66.09                                                  # white key pitch
-BLACK = [0, 1, 3, 4, 5, 7, 8, 10, 11, 12, 14, 15, 17, 18, 19]  # black key j sits right of white key j
+SW = 66.09                                                  # шаг белой клавиши
+BLACK = [0, 1, 3, 4, 5, 7, 8, 10, 11, 12, 14, 15, 17, 18, 19]  # чёрная клавиша j стоит правее белой клавиши j
 WHITE_NAMES = [n + str(o) for o in (3, 4, 5) for n in "CDEFGAB"] + ["C6"]
 BTN_ROW0 = ["ARP", "NOTE REPEAT", "SCALE", "CHORD", "GLOBE", "BT"]
 BTN_ROW1 = ["PATCH", "PARA", "FX", "SEQ", "SEQ PLAY", "SEQ REC"]
@@ -25,7 +26,7 @@ SBX = [1227, 1285, 1342, 1400, 1457, 1514]
 
 
 def controls():
-    """id -> (kind, cx, cy, w, h, printed name)"""
+    """id -> (тип, cx, cy, w, h, печатное имя)"""
     c = {"pitch": ("wheel", 84, 278, 55, 145, "PITCH"), "mod": ("wheel", 162, 278, 55, 145, "MOD"),
          "screen": ("screen", 300, 222, 124, 115, "SCREEN")}
     for i, (k, n) in enumerate([("kb", "KNOB BANK"), ("fb", "FADER BANK"), ("left", "<"), ("right", ">"),
@@ -33,7 +34,7 @@ def controls():
         c[k] = ("btn", 323 if i & 1 else 270, 323 + (i >> 1) * 27, 48, 22, n)
     for i in range(8):
         c[f"k{i + 1}"] = ("knob", 453 + i * 94, 197, 60, 60, f"K{i + 1}")
-    for i in range(16):                                     # p1..p8 top row (hardware pads 0..7), p9..p16 bottom (8..15)
+    for i in range(16):                                     # p1..p8 верхний ряд (аппаратные пэды 0..7), p9..p16 нижний (8..15)
         c[f"p{i + 1}"] = ("pad", 453 + (i % 8) * 94, 277 if i < 8 else 348, 74, 56, str(i + 1))
     for j in range(4):
         c[f"f{j + 1}"] = ("fader", 1222 + j * 96, 242, 75, 125, f"F{j + 1}")

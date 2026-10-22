@@ -1,3 +1,5 @@
+<!-- Русская версия: 1.0.0 (22.10.2026). Локализация репозитория fm1-to-smk37; при изменении обновляйте версию по SemVer. -->
+
 # 03: Porting a firmware, step by step
 
 This walkthrough ports a Felucca-family FM-1 firmware to the SMK-37. The board layer comes in two forms:

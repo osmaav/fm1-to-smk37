@@ -1,3 +1,4 @@
+# Русская версия: 1.0.0 (22.10.2026). При изменении обновляйте версию по SemVer.
 # ORBIT (a SLOOP / Felucca groovebox with an OP-1-style Event Tape) on the SMK-37, as an upstream PR.
 # A SLOOP fork without git history (a v2.3 snapshot with 2.4.1, 2.5 and 2.6 merged by hand): the SLOOP 2.6 layer
 # cherry-picks onto it file by file. Controls: SMK37.md on branch smk37.

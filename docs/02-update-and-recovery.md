@@ -1,3 +1,5 @@
+<!-- Русская версия: 1.0.0 (22.10.2026). Локализация репозитория fm1-to-smk37; при изменении обновляйте версию по SemVer. -->
+
 # 02: Update, backup, recovery and return to stock
 
 The SMK-37 and the FM-1 share the update machinery: the same update library in the app, the same update

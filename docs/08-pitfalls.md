@@ -1,3 +1,5 @@
+<!-- Русская версия: 1.0.0 (22.10.2026). Локализация репозитория fm1-to-smk37; при изменении обновляйте версию по SemVer. -->
+
 # 08: Pitfalls
 
 Things that went wrong in earlier ports, and the fix. Check this list before step 1 and again before a release.

@@ -1,3 +1,5 @@
+<!-- Русская версия: 1.0.0 (22.10.2026). Локализация репозитория fm1-to-smk37; при изменении обновляйте версию по SemVer. -->
+
 # AGENTS.md: porting playbook
 
 The ordered checklist for porting an FM-1 firmware (Felucca family) to the M-Vave SMK-37. Written for a

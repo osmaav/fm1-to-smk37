@@ -1,3 +1,5 @@
+<!-- Русская версия: 1.0.0 (22.10.2026). Локализация репозитория fm1-to-smk37; при изменении обновляйте версию по SemVer. -->
+
 # 01: SMK-37 hardware map (compared with the FM-1)
 
 This is the datasheet the port needs. The SMK-37 Pro, SMK-37 Elite and MKE-P37 (and the Donner Starrykey 37 Play)

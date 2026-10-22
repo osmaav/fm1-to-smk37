@@ -1,3 +1,5 @@
+<!-- Русская версия: 1.0.0 (22.10.2026). Локализация репозитория fm1-to-smk37; при изменении обновляйте версию по SemVer. -->
+
 # 10: SMK-37 to FM-1 (the reverse port)
 
 The rest of this kit ports an FM-1 firmware to the SMK-37. This page goes the other way: a firmware written for

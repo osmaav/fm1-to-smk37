@@ -1,3 +1,4 @@
+# Русская версия: 1.0.0 (22.10.2026). При изменении обновляйте версию по SemVer.
 # winampFM Synth (a Winamp 2.x-style SLOOP 2.6 fork by Hericdk) on the SMK-37, as an upstream PR.
 # A SLOOP copy without git history, the firmware tree one level down (firmware/firmware/src), its own big player UI
 # (ui_winamp.c), a 3D simulator (wasm) and the site at the repository root. Controls: SMK37.md on branch smk37.

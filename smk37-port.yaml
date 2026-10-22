@@ -1,3 +1,8 @@
+# === Русская версия (локализация): 1.0.0, 22.10.2026 ===
+# smk37-port.yaml: все решения одного порта на SMK-37 в одном месте.
+# Агент копирует этот файл в репозиторий прошивки, заполняет по ответам владельца
+# (AGENTS.md, шаг 0) и реализует на шаге 4. Сначала меняйте файл, потом код.
+# Паттерны: docs/06-mapping-patterns.md. Заполненные примеры: examples/*.yaml.
 # smk37-port.yaml: every decision for one SMK-37 port, in one place.
 #
 # The agent copies this file into the firmware repository, fills it from the owner's answers (AGENTS.md, step 0)

@@ -1,3 +1,4 @@
+# Русская версия: 1.0.0 (22.10.2026). При изменении обновляйте версию по SemVer.
 # GHOULBOX (a dungeon-synth groovebox, a Felucca 1.4.1 fork) on the SMK-37, as an upstream PR.
 # A full fork: its own key path (chords, drone latch, KEYS SPLIT / LAYER), its own power-on combos and a crank on
 # SELECT. Controls: SMK37.md on genkigenki/Felucca ghoulbox-smk37.

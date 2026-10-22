@@ -1,3 +1,5 @@
+<!-- Русская версия: 1.0.0 (22.10.2026). Локализация репозитория fm1-to-smk37; при изменении обновляйте версию по SemVer. -->
+
 # 04: Controls mapping
 
 How each FM-1 control and its SLOOP function lands on the SMK-37 in the reference port (SLOOP's SMK-37 build). Use it as

@@ -1,3 +1,5 @@
+<!-- Русская версия: 1.0.0 (22.10.2026). Локализация репозитория fm1-to-smk37; при изменении обновляйте версию по SemVer. -->
+
 # 05: How the facts were obtained
 
 Everything in [01-hardware.md](01-hardware.md) was found in two ways. First by reading the stock SMK-37 Pro
