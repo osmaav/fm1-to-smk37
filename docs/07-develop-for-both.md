@@ -1,30 +1,31 @@
-<!-- Русская версия: 1.0.0 (22.10.2026). Локализация репозитория fm1-to-smk37; при изменении обновляйте версию по SemVer. -->
+<!-- Русская версия: 1.0.1 (22.10.2026). Локализация репозитория fm1-to-smk37; при изменении обновляйте версию по SemVer. -->
 
-# 07: Develop for both boards
+# 07: Разработка для обеих плат
 
-A port is easy to keep alive when one source tree builds the FM-1 and the SMK-37, and new features land on
-both. This is how the ports were kept that way. Use it for a new firmware too: write it for the SMK, keep the
-FM-1 working.
+Перенос легко поддерживать живым, когда одно дерево исходников собирает и FM-1, и SMK-37, а новые функции
+появляются на обеих. Так переносы и сохраняли это состояние. Используйте это и для новой прошивки: пишите её
+для SMK, поддерживая работу FM-1.
 
-## 1. Board code stays in board files
+## 1. Код платы остаётся в файлах платы
 
-- The SMK input HAL, LCD, pad LEDs and flash map live in their own files (`smk_input.h`, the board's flash map,
-  the per-board linker length). Shared files include them under `#if BOARD_SMK37`.
-- In shared UI and engine code, `#if BOARD_SMK37` blocks are short and few: identities, the UI mapping, the
-  storage layout, the console. `grep -n BOARD_SMK37` should read like a list of the port's decisions.
-- With `BOARD_SMK37` 0, the FM-1 outputs are byte-identical to the upstream build. That is the test that the
-  port changed nothing for FM-1 users, and the reason an upstream maintainer can merge it.
+- HAL ввода SMK, ЖК-экран, светодиоды пэдов и карта флеша живут в собственных файлах (`smk_input.h`, карта
+  флеша платы, длина линкера для каждой платы). Общие файлы подключают их под `#if BOARD_SMK37`.
+- В общем UI-коде и коде движка блоки `#if BOARD_SMK37` короткие и редкие: идентификаторы, отображение UI,
+  раскладка хранилища, консоль. `grep -n BOARD_SMK37` должен читаться как список решений переноса.
+- При `BOARD_SMK37` равном 0 выходные файлы FM-1 побайтово идентичны вышестоящей сборке. Это тест на то, что
+  перенос ничего не изменил для пользователей FM-1, и причина, по которой сопровождающий вышестоящего проекта
+  может его принять.
 
-## 2. Features against a small capability layer
+## 2. Функции против маленького слоя возможностей
 
-Write features against what a board **has**, not against which board it is. A few constants and calls are
-enough:
+Пишите функции против того, что плата **имеет**, а не против того, какая это плата. Достаточно нескольких
+констант и вызовов:
 
 ```c
-/* board_caps.h: one place that says what the panel has (values for the SMK-37 / the FM-1) */
+/* board_caps.h: единственное место, говорящее, что есть на панели (значения для SMK-37 / FM-1) */
 #if BOARD_SMK37
-#define CAP_KEYS        37    /* velocity keys; the FM-1 range is keys 5..31 */
-#define CAP_PADS        16    /* RGB pads; hardware 0..7 top row, 8..15 bottom */
+#define CAP_KEYS        37    /* клавиши с velocity; диапазон FM-1 — клавиши 5..31 */
+#define CAP_PADS        16    /* RGB-пэды; аппаратно 0..7 верхний ряд, 8..15 нижний */
 #define CAP_FADERS       4
 #define CAP_WHEELS       2
 #define CAP_OUTER_KEYS  10
@@ -38,35 +39,36 @@ enough:
 #define CAP_RGB          0
 #endif
 
-void caps_pad_led(int pad, uint32_t rgb);   /* SMK: the pad; FM-1: the white key's LED (or nothing) */
-int  caps_fader(int i);                     /* 0..1023 after soft takeover; -1 when not moved yet */
-int  caps_wheel(int i);                     /* calibrated -512..511 around the centre */
+void caps_pad_led(int pad, uint32_t rgb);   /* SMK: пэд; FM-1: светодиод белой клавиши (или ничего) */
+int  caps_fader(int i);                     /* 0..1023 после мягкого перехвата; -1 пока не двигался */
+int  caps_wheel(int i);                     /* откалиброванные -512..511 вокруг центра */
 ```
 
-Then each feature has an FM-1 fallback in the same place:
+Затем у каждой функции есть запасной путь FM-1 в том же месте:
 
-| Feature | SMK-37 | FM-1 fallback |
+| Функция | SMK-37 | Запасной вариант FM-1 |
 |---|---|---|
-| Step grid | 16 pads in track colours | the white keys' LEDs, as before |
-| Sound picker | pads + screen | the screen list, scrolled with PRESETS |
-| Fader banks | 4 faders | a menu page with four dials |
-| Wheels | bend, vibrato or a macro | a menu value, or off |
-| Outer-key drums | 10 keys | not available (the feature hides itself) |
+| Сетка шагов | 16 пэдов в цветах дорожек | светодиоды белых клавиш, как прежде |
+| Выбор звука | пэды + экран | список на экране, листается ручкой PRESETS |
+| Банки фейдеров | 4 фейдера | страница меню с четырьмя крутилками |
+| Колёса | bend, вибрато или макрос | значение в меню, либо выключено |
+| Барабаны на крайних клавишах | 10 клавиш | недоступно (функция сама скрывается) |
 
-With `CAP_*` zero the compiler removes the SMK paths, which keeps the FM-1 build identical.
+При нулевых `CAP_*` компилятор удаляет пути SMK, что сохраняет сборку FM-1 идентичной.
 
-## 3. Build and test matrix
+## 3. Матрица сборки и тестирования
 
-Build and test every change on both boards, locally and in CI, in this order (both boards write the same
-`build/` intermediates, and the tests expect FM-1 binaries; copy each package out before the next build):
+Собирайте и тестируйте каждое изменение на обеих платах, локально и в CI, в таком порядке (обе платы пишут
+одни и те же промежуточные файлы в `build/`, а тесты ожидают бинарные файлы FM-1; копируйте каждый пакет
+перед следующей сборкой):
 
-| Job | Command | Check |
+| Задача | Команда | Проверка |
 |---|---|---|
-| SMK-37 Pro | `BOARD=smk37 sh build.sh` | builds; package identity `SMK-37 Pro_9xx` |
-| SMK models | `BOARD=smk37 MODEL=elite sh build.sh`, `MODEL=mke` | identities `SMK-37 Elite_…`, `MKE-P37_…` (both layers build all three) |
-| FM-1 | `sh build.sh` | hashes equal the upstream baseline (`sha256sum -c`) |
-| Host tests | `sh tests/run_tests.sh` | no new failures; flash map, loader, OTA, owner tag, storage |
-| Screens | the host screen renderer | one image per control, compared with the docs |
+| SMK-37 Pro | `BOARD=smk37 sh build.sh` | собирается; идентификатор пакета `SMK-37 Pro_9xx` |
+| Модели SMK | `BOARD=smk37 MODEL=elite sh build.sh`, `MODEL=mke` | идентификаторы `SMK-37 Elite_…`, `MKE-P37_…` (оба слоя собирают все три) |
+| FM-1 | `sh build.sh` | хэши равны вышестоящему базлайну (`sha256sum -c`) |
+| Хостовые тесты | `sh tests/run_tests.sh` | нет новых падений; карта флеша, загрузчик, OTA, тег владельца, хранилище |
+| Экраны | хостовый рендерер экранов | по одному изображению на орган управления, сравнение с документацией |
 
-A CI workflow only needs the JieLi toolchain (cached) and the matrix above. Host tests on glibc need
-`CC='cc -D_DEFAULT_SOURCE'` (see [08-pitfalls.md](08-pitfalls.md)).
+CI-конвейеру нужны только тулчейн JieLi (кэшируемый) и матрица выше. Хостовым тестам на glibc нужен
+`CC='cc -D_DEFAULT_SOURCE'` (см. [08-pitfalls.md](08-pitfalls.md)).

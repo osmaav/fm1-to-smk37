@@ -1,287 +1,299 @@
-<!-- Русская версия: 1.0.0 (22.10.2026). Локализация репозитория fm1-to-smk37; при изменении обновляйте версию по SemVer. -->
+<!-- Русская версия: 1.0.1 (22.10.2026). Локализация репозитория fm1-to-smk37; при изменении обновляйте версию по SemVer. -->
 
-# 06: Mapping patterns
+# 06: Шаблоны сопоставления органов управления
 
-The SMK-37 has more controls than the FM-1: ten more keys, 16 RGB pads, 4 faders, 2 wheels and 4 more
-buttons. These patterns put them to work. Each one ran on a real unit in at least one port. Pick per control
-group, write the choice into [`smk37-port.yaml`](../smk37-port.yaml), then implement it.
+У SMK-37 больше органов управления, чем у FM-1: на десять клавиш больше, 16 RGB-пэдов, 4 фейдера,
+2 колёса и ещё 4 кнопки. Эти шаблоны задействуют их. Каждый из них работал на реальном устройстве хотя бы
+в одном переносе. Выбирайте по группе органов управления, записывайте выбор в [`smk37-port.yaml`](../smk37-port.yaml),
+затем реализуйте его.
 
-![The SMK-37 panel](../assets/smk37-panel.png)
+![Панель SMK-37](../assets/smk37-panel.png)
 
-Pad numbers in this guide are in reading order: pads 1-8 are the top row (hardware pads 0..7), pads 9-16 the
-bottom row (hardware pads 8..15). The hardware index is the same for hits and LEDs; see
-[01-hardware.md](01-hardware.md), 6.3. The diagrams are drawn by `tools/make_panels.py`.
+Номера пэдов в этом руководстве — в порядке чтения: пэды 1-8 — верхний ряд (аппаратные пэды 0..7),
+пэды 9-16 — нижний ряд (аппаратные пэды 8..15). Аппаратный индекс одинаков для ударов и светодиодов;
+см. [01-hardware.md](01-hardware.md), 6.3. Диаграммы рисует `tools/make_panels.py`.
 
-**The base rules:**
+**Базовые правила:**
 
-1. **The firmware's own layout first.** Every FM-1 control keeps a home on the SMK, in the firmware's own order
-   and grouping and under its own names, so its manual still applies. The extra controls add to that and never
-   take something away. A new firmware (no FM-1 manual to keep) can drop this rule.
-2. **No doubles.** A control never repeats another control's job, unless the owner asks for it. Before giving a
-   new control a job, ask what has no direct control yet.
+1. **Сначала собственная раскладка прошивки.** Каждый орган управления FM-1 сохраняет своё место на SMK,
+   в собственном порядке и группировке прошивки и под своими названиями, чтобы её руководство оставалось
+   применимым. Дополнительные органы только дополняют, ничего не отнимая. Новая прошивка (без руководства
+   FM-1) может отменить это правило.
+2. **Без дублей.** Орган управления никогда не повторяет работу другого, если владелец не просит иначе.
+   Прежде чем дать новому органу задачу, спросите, что ещё осталось без прямого управления.
 
-## Quick chooser
+## Быстрый выбор
 
-| Control | Pattern | Used in | Choose it when |
+| Орган | Шаблон | Использовано в | Выбирайте, когда |
 |---|---|---|---|
-| Keys | [Middle 27 = FM-1 keys](#keys-the-fm-1-range-in-the-middle) | all ports | always |
-| Keys | [Velocity setting](#keys-velocity-setting) | Snoop37 | the firmware has a settings menu |
-| Outer keys | [Extend, drums on a drum track](#outer-keys-extend-and-drums) | SLOOP | the firmware has a drum track or a range limit |
-| Pads | [Function keys on the pads](#pads-function-keys-on-the-pads) | ChoralRoot | the firmware uses some keybed keys as functions or modifiers |
-| Pads | [Steps in reading order](#pads-steps-in-reading-order) | SLOOP, X0X, Felucca PR | the firmware has a 16-step sequencer |
-| Pads | [Sound picker](#pads-sound-picker) | SLOOP | many presets, chosen by scrolling on the FM-1 |
-| Pads | [Voices and a CHAOS pad](#pads-voices-and-a-big-gesture) | Makkuro37 | a drone or multi-voice instrument |
-| Pads | [Strum plate](#pads-strum-plate) | FoMni | a chord instrument |
-| Faders | [Banks with soft takeover](#faders-banks-with-soft-takeover) | SLOOP, Makkuro37, FoMni | per-track settings, more than four jobs |
-| Faders | [What has no direct control](#faders-what-has-no-direct-control) | | the knobs already reach every parameter on screen |
-| Wheels | [Bend and vibrato, or a macro](#wheels-bend-and-vibrato-or-a-macro) | all ports | always |
-| Wheels | [Bend range setting](#wheels-bend-range-setting) | Snoop37 | the firmware has a settings menu |
-| Wheels | [Calibration in the power-on calibration](#wheels-calibration-in-the-power-on-calibration) | Snoop37 | the firmware has a hardware calibration |
-| TRS jack | [MIDI out on the TRS jack](#trs-jack-midi-out) | Snoop37 | the firmware sends MIDI over USB |
-| Knobs | [The FM-1 top row](#knobs-the-fm-1-top-row) | SLOOP, X0X, FoMni | keeping the FM-1 workflow |
-| Knobs | [A page per button, eight columns](#knobs-a-page-per-button-eight-columns) | Makkuro37 | a redesign with many parameters per voice |
-| Buttons | [Printed meaning, four extras](#buttons-printed-meaning-and-four-extras) | SLOOP, X0X, FoMni | the firmware names its buttons by function |
-| Buttons | [By row](#buttons-by-row) | | the firmware groups its buttons by row (one row of verbs, one of modes) |
-| Whole port | [A toy for children](#a-toy-for-children) | Rainbow mode | a firmware for kids, or any safe-by-default instrument |
+| Клавиши | [Средние 27 = клавиши FM-1](#клавиши-диапазон-fm-1-посередине) | все переносы | всегда |
+| Клавиши | [Настройка velocity](#клавиши-настройка-velocity) | Snoop37 | у прошивки есть меню настроек |
+| Крайние клавиши | [Расширение, барабаны на барабанной дорожке](#крайние-клавиши-расширение-и-барабаны) | SLOOP | у прошивки есть барабанная дорожка или ограничение диапазона |
+| Пэды | [Функциональные клавиши на пэдах](#пэды-функциональные-клавиши-на-пэдах) | ChoralRoot | прошивка использует часть клавиш как функции или модификаторы |
+| Пэды | [Шаги в порядке чтения](#пэды-шаги-в-порядке-чтения) | SLOOP, X0X, Felucca PR | у прошивки 16-шаговый секвенсор |
+| Пэды | [Выбор звука](#пэды-выбор-звука) | SLOOP | много пресетов, на FM-1 выбираемых только листанием |
+| Пэды | [Голоса и пэд CHAOS](#пэды-голоса-и-один-большой-жест) | Makkuro37 | дрон или многоголосный инструмент |
+| Пэды | [Струнная пластина](#пэды-струнная-пластина) | FoMni | аккордовый инструмент |
+| Фейдеры | [Банки с мягким перехватом](#фейдеры-банки-с-мягким-перехватом) | SLOOP, Makkuro37, FoMni | настройки по дорожкам, больше четырёх задач |
+| Фейдеры | [То, у чего нет прямого управления](#фейдеры-то-у-чего-нет-прямого-управления) | | ручки уже достают до всех параметров на экране |
+| Колёса | [Bend и вибрато или макрос](#колёса-bend-и-вибрато-или-макрос) | все переносы | всегда |
+| Колёса | [Настройка диапазона bend](#колёса-настройка-диапазона-bend) | Snoop37 | у прошивки есть меню настроек |
+| Колёса | [Калибровка в калибровке при включении](#колёса-калибровка-в-калибровке-при-включении) | Snoop37 | у прошивки есть аппаратная калибровка |
+| TRS-джек | [MIDI out на TRS-джеке](#trs-джек-midi-out) | Snoop37 | прошивка отправляет MIDI по USB |
+| Ручки | [Верхний ряд FM-1](#ручки-верхний-ряд-fm-1) | SLOOP, X0X, FoMni | сохранение рабочего процесса FM-1 |
+| Ручки | [Страница на кнопку, восемь колонок](#ручки-страница-на-кнопку-восемь-колонок) | Makkuro37 | редизайн со многими параметрами на голос |
+| Кнопки | [Напечатанное назначение и четыре дополнительные](#кнопки-напечатанное-назначение-и-четыре-дополнительные) | SLOOP, X0X, FoMni | прошивка называет кнопки по функциям |
+| Кнопки | [По рядам](#кнопки-по-рядам) | | прошивка группирует кнопки по рядам (ряд действий, ряд режимов) |
+| Перенос целиком | [Игрушка для детей](#игрушка-для-детей) | режим Rainbow | прошивка для детей или любой безопасный по умолчанию инструмент |
+
+## Клавиши: диапазон FM-1 посередине
+
+Средние 27 клавиш (keybed 5..31, F3..G5) — нотные клавиши FM-1 с velocity из заводских кривых устройства
+(запись `trimdat`, только чтение). В слоях, где FM-1 использует клавиши как плитки (шаги, эффекты, микс),
+те же клавиши делают то же самое. Используется всеми переносами.
+
+## Клавиши: настройка velocity
+
+У клавиш FM-1 нет velocity, и многие прошивки FM-1 предполагают фиксированное (SLOOP: 100). На SMK
+предложите настройку KEY VELOCITY в собственном меню настроек прошивки, только для сборок SMK:
+
+- **Значения:** DYNAMIC (как сыграно, по умолчанию), SOFT и HARD (две кривые от сыгранного velocity),
+  FIXED 64 / 100 / 127 (100: как на FM-1).
+- **Где:** применяйте там, где прошивка читает velocity клавиши или пэда (один помощник), чтобы ноты,
+  их MIDI out и всё производное от velocity (ghost/hard-уровни барабанов) следовали ему. Сырое velocity
+  остаётся в слое ввода.
+- **Хранение:** в свободных битах слова настроек, которое прошивка уже хранит; 0 = DYNAMIC, чтобы старые
+  данные загружались как прежде. Без повышения версии хранилища, сборка FM-1 побайтово идентична.
+- **Использовано в:** Snoop37 (меню HOME > AUDIO > KEY VELOCITY, на K8).
 
-## Keys: the FM-1 range in the middle
+## Крайние клавиши: расширение и барабаны
 
-The middle 27 keys (keybed 5..31, F3..G5) are the FM-1's note keys, with velocity from the unit's own factory
-curves (the `trimdat` record, read only). In layers where the FM-1 uses its keys as tiles (steps, effects, mix),
-the same keys do the same thing. Used by every port.
-
-## Keys: velocity setting
+![Крайние клавиши](../assets/panel/keys-outer.svg)
 
-The FM-1's keys have no velocity, and many FM-1 firmwares assume a fixed one (SLOOP: 100). On the SMK, offer a
-KEY VELOCITY setting in the firmware's own settings menu, SMK builds only:
+10 крайних клавиш (C3-E3, G#5-C6) по умолчанию расширяют клавиатуру: на синтезаторной дорожке они играют ноты.
+На барабанной дорожке они играют барабаны, так что можно играть пальцами, пока средние клавиши сохраняют свою
+работу FM-1. Чёрная клавиша играет своего левого белого соседа.
 
-- **Values:** DYNAMIC (as played, the default), SOFT and HARD (two curves on the played velocity), FIXED 64 / 100
-  / 127 (100: as the FM-1).
-- **Where:** apply it where the firmware reads a key's or a pad's velocity (one helper), so the notes, their MIDI out
-  and anything derived from velocity (drum ghost / hard levels) follow it. The raw velocity stays in the input layer.
-- **Store:** in free bits of a settings word the firmware already keeps; 0 = DYNAMIC, so older data loads as before.
-  No store version bump, the FM-1 build byte-identical.
-- **Used in:** Snoop37 (HOME menu > AUDIO > KEY VELOCITY, on K8).
+- **SLOOP:** C3 бочка, D3 малый барабан, E3 хэт; G#5 ковбелл, A5 открытый хэт, B5 крэш, C6 райд.
+- **Выбирать:** расширение, когда прошивка играет ноты; барабаны, когда есть барабанная дорожка; транспонирование
+  или выключение, когда средние клавиши большую часть времени — плитки.
+- **Следить:** удар крайней клавиши не зажигает ни один пэд (пэды показывают шаги).
 
-## Outer keys: extend and drums
+## Пэды: функциональные клавиши на пэдах
 
-![Outer keys](../assets/panel/keys-outer.svg)
+Когда прошивка FM-1 использует часть своих клавиш как функции или модификаторы (аккордовый блок ChoralRoot:
+DIM MIN MAJ SUS, 6 m7 M7 9 и LOCK на F3..C#4), перенесите эти функции на пэды и отдайте всю клавиатуру под ноты.
+Это лучше зеркалирования клавиатуры FM-1 на пэды: играющий получает все 37 клавиш для нот, а функции — на своём месте.
 
-The 10 outer keys (C3-E3, G#5-C6) extend the keyboard by default: on a synth track they play notes. On a drum
-track they play drums, so you can finger-drum while the middle keys keep their FM-1 job. A black key plays its left
-white neighbour.
+- **Компоновка по музыкальному смыслу:** одна группа на ряд или блок, в собственном порядке прошивки (ChoralRoot:
+  левая половина верхнего ряда — типы DIM MIN MAJ SUS, нижнего — надстройки 6 m7 M7 9, затем LOCK).
+- **Оригинальное поведение:** пэд — это заменяемая им клавиша: удерживается, пока удерживают, комбинации как с
+  клавишами, и залипает только там, где залипает оригинал (LOCK в ChoralRoot). Никаких ваших правил залипания.
+- **Свет как у клавиши:** яркий при удержании или залипании, тусклый иначе; цвет на группу, экранный, если они
+  есть (ChoralRoot: типы белые, надстройки оранжевые, LOCK синий).
+- **Оставшиеся пэды: переключатели режимов прошивки**, сгруппированные по цвету (ChoralRoot: режимы исполнения,
+  cyan для свободнотемповых Strum, Strum 2 Octaves, Slop, Harp, green для синхронизированных Arpeggiate,
+  Arp 2 Octaves, Pattern). Нажатие выбирает режим и включает функцию, пэд играющего режима снова выключает её,
+  как собственная кнопка прошивки; ярким только играющий режим. Используйте собственные функции выбора и
+  переключения прошивки, чтобы кнопка, её слой и пэды всегда показывали одно состояние.
+- **Реализация:** направьте пэды в обработчики клавиш прошивки (нажатие/отпускание функциональной клавиши), а не
+  через биты нот: клавиши, несшие функции, теперь играют ноты и сохраняют свои биты.
+- **Использовано в:** ChoralRoot. **Выбирать:** у прошивки модификаторы на клавиатуре.
 
-- **SLOOP:** C3 kick, D3 snare, E3 hi-hat; G#5 cowbell, A5 open hi-hat, B5 crash, C6 ride.
-- **Choose:** extend when the firmware plays notes; drums when it has a drum track; transpose or off when the
-  middle keys are tiles most of the time.
-- **Watch:** an outer-key drum hit lights no pad (the pads show steps).
+## Пэды: шаги в порядке чтения
 
-## Pads: function keys on the pads
+![Пэды как шаги](../assets/panel/pads-steps.svg)
+
+16 пэдов — это 16 белых клавиш FM-1 F3..G5 в **порядке чтения**: шаги 1-8 в верхнем ряду, 9-16 в нижнем
+(аппаратные пэды 0..7 и 8..15). Преобразуйте в одном месте, для ударов и светодиодов одинаково. Пэды светятся
+в цветах дорожек экрана: включённые шаги горят, каретка и удары яркие, выключенные тёмные (без слоёв свечения).
+Пэды играют с velocity.
 
-When the FM-1 firmware uses some of its keybed keys as functions or modifiers (ChoralRoot's chord block: DIM MIN MAJ SUS,
-6 m7 M7 9 and LOCK on F3..C#4), move those functions onto the pads and let the whole keybed play. This beats mirroring
-the FM-1's keybed onto the pads: the player gets all 37 keys for notes and the functions in a place of their own.
+- **Использовано в:** SLOOP (также рояльная раскладка в слое SEL, слоты сохранения в слое SAVE), X0X (сетка
+  шагов), Felucca PR.
+- **Выбирать:** прошивка секвенирует 16 шагов, или её белые клавиши — плитки. Это вариант по умолчанию.
+
+## Пэды: выбор звука
 
-- **Layout by musical meaning:** one group per row or block, in the firmware's own order (ChoralRoot: the top row's
-  left half the types DIM MIN MAJ SUS, the bottom row's the extensions 6 m7 M7 9, then LOCK).
-- **The original behaviour:** a pad is the key it replaces: held while it is held, combinations as with the keys, and
-  it latches only where the original latches (ChoralRoot's LOCK). No latching or one-per-group rule of your own.
-- **Light as the key's light:** bright while held or latched, dim otherwise; a colour per group, the screen's where it
-  has them (ChoralRoot: types white, extensions orange, LOCK blue).
-- **Pads left over: the firmware's mode pickers**, grouped by colour (ChoralRoot: the performance modes, cyan for the
-  free-timing ones Strum, Strum 2 Octaves, Slop, Harp, green for the tempo-synced Arpeggiate, Arp 2 Octaves, Pattern). A
-  tap picks the mode and switches the function on, the playing mode's pad again switches it off, as the firmware's own
-  button does; only the mode playing is bright. Use the firmware's own pick and toggle functions so the button, its
-  layer and the pads always show one state.
-- **Implement:** route the pads to the firmware's key handlers (press / release of the function key), not through the
-  note bits: the keybed keys that carried the functions now play notes and keep their bits.
-- **Used in:** ChoralRoot. **Choose:** the firmware has modifier keys on its keybed.
+![Выбор звука на пэдах](../assets/panel/pads-picker.svg)
+
+Поворот ручки звука (K4, PRESETS) показывает звуки одного вида на пэдах и экране. Пэд выбирает и предпросматривает,
+`<` `>` листают виды, а кнопка (KNOB BANK) закрепляет открытым. После поворота ручки он держится короткое время,
+затем пэды возвращаются к шагам.
+
+- **Использовано в:** SLOOP.
+- **Выбирать:** у прошивки много пресетов, которые на FM-1 можно только листать.
+
+## Пэды: голоса и один большой жест
+
+![Пэды как голоса](../assets/panel/pads-perform.svg)
 
-## Pads: steps in reading order
+Пэды управляют голосами: верхний ряд будит и усыпляет голоса 1..8, цвет голоса на пэде, его ручке и экрану.
+Один пэд делает большой жест (CHAOS), труднодостижимый ручками.
 
-![Pads as steps](../assets/panel/pads-steps.svg)
+- **Использовано в:** Makkuro37 (восемь дроновых голосов).
+- **Выбирать:** дрон, многоголосный или живой исполнительский инструмент без пошагового секвенсора.
 
-The 16 pads are the FM-1's 16 white keys F3..G5, in **reading order**: steps 1-8 on the top row, 9-16 on the
-bottom (hardware pads 0..7 and 8..15). Convert in one place, for hits and LEDs alike. Pads light in the
-screen's track colours: steps that are on are lit, the playhead and hits bright, off is dark (no glow layers).
-Pads play with velocity.
+## Пэды: струнная пластина
 
-- **Used in:** SLOOP (also a piano layout in the SEL layer, save slots in the SAVE layer), X0X (the step
-  grid), the Felucca PR.
-- **Choose:** the firmware sequences 16 steps, or its white keys are tiles. This is the default.
+![Пэды как струнная пластина](../assets/panel/pads-strum.svg)
 
-## Pads: sound picker
+Пэды — 16 струн: верхний ряд низкие, нижний высокие. Клавиатура держит аккорд; проводящий пальцем по ряду
+сцедывает его. Струна светится, пока звучит; в покое корневые струны тускло сияют. Velocity задаёт громкость
+и яркость.
 
-![Pad sound picker](../assets/panel/pads-picker.svg)
-
-Turning the sound knob (K4, PRESETS) shows the sounds of one kind on the pads and the screen. A pad picks and
-previews, `<` `>` page through the kinds, and a button (KNOB BANK) pins the picker open. After a knob turn it stays
-for a short time, then the pads go back to steps.
-
-- **Used in:** SLOOP.
-- **Choose:** the firmware has many presets that the FM-1 can only scroll through.
+- **Использовано в:** FoMni (аккордовая арфа в стиле Omnichord).
+- **Выбирать:** аккордовый инструмент, арпеджиатор или всё, на чём играют проводя.
 
-## Pads: voices and a big gesture
+## Фейдеры: банки с мягким перехватом
 
-![Pads as voices](../assets/panel/pads-perform.svg)
+![Банки фейдеров](../assets/panel/faders-banks.svg)
 
-The pads gate voices: the top row wakes and sleeps voice 1..8, the voice's colour on the pad, its knob and the
-screen. One pad does a big gesture (CHAOS) that is hard to do with knobs.
+Фейдер i управляет дорожкой i в её цвете. FADER BANK выбирает, что они задают: **A** уровень, **B** фильтр
+(low-pass слева, открыто в центре, high-pass справа), **C** посылка реверба, **D** посылка дилея. Фейдер
+перехватывает управление только после движения, также после смены банка, поэтому ничего не прыгает. Экран
+FADER BANK показывает все четыре банка; его светодиод горит вне банка A.
 
-- **Used in:** Makkuro37 (eight drone voices).
-- **Choose:** a drone, a multi-voice or a live-performance instrument without a step sequencer.
+- **Использовано в:** SLOOP (как выше), Makkuro37 (банки FX L, FX R, LFO, PLAY, OUTPUT), FoMni (банки A и B).
+- **Выбирать:** настройки по дорожкам или больше четырёх задач, достойных фейдера.
 
-## Pads: strum plate
+## Фейдеры: то, у чего нет прямого управления
 
-![Pads as a strum plate](../assets/panel/pads-strum.svg)
+Когда банки или микшер повторяли бы то, что уже делают ручки, отдайте фейдерам величины без собственного
+управления: уровень постоянного эффекта, сидящего иначе в меню, посылку, баланс двух движков. Выпишите параметры
+прошивки, вычеркните то, до чего уже достают ручка или кнопка, и предложите владельцу остаток.
 
-The pads are 16 strings: top row low, bottom row high. The keybed holds the chord; a finger across a row strums
-it. A string lights while it rings; at rest the root strings glow dimly. Velocity sets loudness and brightness.
+- **Выбирать:** правило владельца «без дублей», и ручки покрывают параметры экрана.
 
-- **Used in:** FoMni (the Omnichord-style chord harp).
-- **Choose:** a chord instrument, an arpeggiator or anything played by sweeping.
+## Колёса: bend и вибрато или макрос
 
-## Faders: banks with soft takeover
+![Колёса](../assets/panel/wheels.svg)
 
-![Fader banks](../assets/panel/faders-banks.svg)
+Колесо питча = bend (SLOOP: +-7 полутонов на выбранной дорожке, Snoop37 2.6.4: настройка, по умолчанию +-7;
+FoMni: +-2). Колесо модуляции = вибрато (SLOOP: 10 Гц, до +-1 полутона, вверх — сильнее; FoMni: 5,5 Гц, до
++-1/2 полутона), либо один исполнительский макрос. Колёса калибруют себя сами: центр берётся при включении,
+диапазон расширяется по мере движения колеса, с мёртвой зоной вокруг центра.
 
-Fader i sets track i, in the track's colour. FADER BANK picks what they set: **A** level, **B** filter
-(low-pass left, open centre, high-pass right), **C** reverb send, **D** delay send. A fader takes over only once it
-moves, also after a bank change, so nothing jumps. A FADER BANK screen shows all four banks; its LED is lit off
-bank A.
+- **Выбирать:** bend и вибрато, если у инструмента нет одного жеста, стоящего колеса.
 
-- **Used in:** SLOOP (as above), Makkuro37 (banks FX L, FX R, LFO, PLAY, OUTPUT), FoMni (banks A and B).
-- **Choose:** per-track settings, or more than four things worth a fader.
+## Колёса: настройка диапазона bend
 
-## Faders: what has no direct control
+Фиксированный диапазон bend устраивает не всех. Предложите BEND RANGE в меню настроек, только сборки SMK:
++-1, 2, 3, 4, 5, 7, 12 полутонов, по умолчанию диапазон переноса (Snoop37: 7, чтобы обновление сохраняло
+ощущения). Оно задаёт колесо только для внутренних звуков; диапазон pitch bend MIDI IN, уже имеющийся у
+прошивки, остаётся отдельным. Код bend принимает диапазон параметром (1/4096 полутона x диапазон), поэтому
+математику диапазона можно тестировать на хосте. Храните в запасном байте части настроек, которую прошивка уже
+пишет, 0 = по умолчанию, чтобы старые данные загружались как прежде и сборка FM-1 не менялась. Использовано в:
+Snoop37 (меню HOME > MIDI > BEND RANGE, K6).
 
-When banks or a mixer would repeat what the knobs already do, give the faders the amounts that have no control of
-their own: a standing effect level that otherwise sits in a menu, a send, a balance between two engines. List the
-firmware's parameters, cross out what a knob or button already reaches, and offer the owner the rest.
+## Колёса: калибровка в калибровке при включении
 
-- **Choose:** the owner's rule is "no doubles" and the knobs cover the screen's parameters.
+Ход колёс различается по устройствам (pitch ~445..640, mod ~474..629 сырых значений на одном устройстве), поэтому
+самокалибровка достигает полного диапазона только после того, как колесо побывало на концах. Добавьте колёса в
+аппаратную калибровку прошивки, после кнопок и ручек:
 
-## Wheels: bend and vibrato, or a macro
+- **Шаги:** pitch в покое, до упора вниз, до упора вверх; mod внизу, до упора вверх. Одна кнопка (OCT+ как
+  только что обучено) принимает каждый шаг; экран показывает живое значение. На конце сохраняйте самое дальнее
+  значение за весь шаг (колесо, отпущенное чуть раньше, всё равно достигло конца); в покое берите выборку через
+  0,3 с после нажатия и задавайте мёртвую зону по шуму (2 x разброс + 6, 8..24 счёта).
+- **Использование:** сдвиньте обученные концы внутрь на 3 счёта, чтобы полный ход давал полный диапазон;
+  расширяйте, если колесо заходит дальше. При включении колесо питча, покоящееся в мёртвой зоне обученного центра,
+  становится центром; удерживаемое колесо использует обученный центр. Сохраняйте медленное следование за центром
+  (по времени, не по вызовам).
+- **Хранение:** собственный маленький объект (магическое число, 16 байт), не внутри структуры настроек, layout
+  которой читают другие инструменты; отсутствие или выход за диапазон = самокалибровка как прежде. Snoop37:
+  `OBJ_WCAL` на 0xB1000 / 0xB2000.
+- **Безопасность:** 30-секундный таймаут простоя на шаг сохраняет старые значения; слишком малый ход отвергается
+  с сообщением.
 
-![Wheels](../assets/panel/wheels.svg)
+## TRS-джек: MIDI out
 
-Pitch wheel = bend (SLOOP: +-7 semitones on the selected track, Snoop37 2.6.4: a setting, default +-7; FoMni: +-2). Mod wheel = vibrato (SLOOP:
-10 Hz, up to +-1 semitone, up = more; FoMni: 5.5 Hz, up to +-1/2 semitone), or one performance macro. The
-wheels calibrate themselves: centre taken at power-on, the range widens as the wheel is seen to move, with a dead
-band around the centre.
+3,5-мм джек SMK — это MIDI OUT (UART1 TX на PC7); у FM-1 это MIDI IN на PH8 (ряд клавиш на SMK: держите тот
+драйвер выключенным). Отправляйте тот же поток, что и USB MIDI out: подключитесь к единственной функции,
+ставящей в очередь пакеты USB MIDI, и передавайте каждый пакет также драйверу TRS, до проверки «USB
+configured», чтобы джек работал без компьютера.
 
-- **Choose:** bend and vibrato unless the instrument has one gesture worth a wheel.
+- **Байты:** преобразуйте каждый пакет USB-MIDI по его CIN (8..E канальные сообщения, C/D два байта, F одиночные
+  realtime-байты, 2/3 system common); отбрасывайте SysEx и пакеты, чей статус не совпадает с CIN (дорожка с MIDI
+  OFF может порождать статус 0xFF). Running status не нужен.
+- **Кольцо и темп:** кольцо из 256 байт целыми сообщениями (полное кольцо отбрасывает сообщение, никогда не
+  половину). Опорожняйте из 10 кГц таймерного тика, вложенно и в audio render: по одному байту, когда последний
+  ушёл (TPND), никогда циклом ожидания. Это даёт ~2500 байт/с против 3125 в линии.
+- **Без зависаний:** байт, не завершённый за 30 тиков (3 мс), отвергается; после четырёх подряд джек замолкает,
+  пока настройку не выставить заново. Настройка TRS MIDI OUT ON/OFF (по умолчанию ON) в меню настроек.
+- **Адаптер:** SMK-37 указан как тип A (общинная спецификация, не измерено); посоветуйте пользователям
+  попробовать тип B, если синтезатор не отвечает.
+- **Использовано в:** Snoop37 2.6.4 (`hal/smk_uart_tx.h`, `src/smk_midi_out.h`), ещё не подтверждено на устройстве.
 
-## Wheels: bend range setting
+## Ручки: верхний ряд FM-1
 
-A fixed bend range never suits everyone. Offer BEND RANGE in the settings menu, SMK builds only: +-1, 2, 3, 4, 5,
-7, 12 semitones, default the range the port had (Snoop37: 7, so an update keeps the feel). It sets the wheel on the
-internal sounds only; a MIDI IN pitch bend range the firmware already has stays separate. The bend code takes the
-range as a parameter (1/4096 semitone x range), so the range math is host-testable. Store it in a spare byte of a
-settings part the firmware already writes, 0 = the default, so older data loads as before and the FM-1 build is
-unchanged. Used in: Snoop37 (HOME menu > MIDI > BEND RANGE, K6).
+![Ручки как верхний ряд FM-1](../assets/panel/knobs.svg)
 
-## Wheels: calibration in the power-on calibration
+K1-K8 — ручки FM-1: K1 — виртуальный потенциометр MASTER (потенциометр FM-1 абсолютный; K1 — энкодер, поэтому
+он шагает хранящееся значение, 24 из 1024 на щелчок в SLOOP), K2-K4 — энкодеры, K5-K8 — четыре крутилки экрана
+в их цветах. Один шаг энкодера на щелчок. Сохраняйте порядок экрана прошивки: SLOOP показывает SELECT,
+ALGORITHM, PRESETS (K2, K3, K4); прошивка, показывающая SELECT, PRESETS, ALGORITHM, сохраняет свой порядок.
 
-The wheels' travel differs per unit (pitch ~445..640, mod ~474..629 raw on one unit), so self-calibration only
-reaches the full range once the wheel has been at its ends. Add the wheels to the firmware's hardware calibration,
-after the buttons and knobs:
+- **Использовано в:** SLOOP, X0X, FoMni.
+- **Выбирать:** сохранение рабочего процесса FM-1. Подходящие колпачки ручек делают это очевидным.
 
-- **Steps:** pitch at rest, full down, full up; mod at the bottom, full up. One button (OCT+ as just taught) takes
-  each step; the screen shows the live reading. At an end, keep the furthest reading of the whole step (a wheel let
-  go a moment early still reached its end); at rest, sample 0.3 s after the press and set the dead band from the
-  noise (2 x spread + 6, 8..24 counts).
-- **Use:** move the taught ends in by 3 counts so the full travel gives the full range; widen them if the wheel goes
-  further. At power-on a pitch wheel resting within the dead band of the taught centre becomes the centre; a held
-  wheel uses the taught centre. Keep the slow drift-follow of the centre (in time, not in calls).
-- **Store:** a small object of its own (a magic, 16 bytes), not inside a settings struct whose layout other tools
-  read; none or out of range = self-calibration as before. Snoop37: `OBJ_WCAL` at 0xB1000 / 0xB2000.
-- **Safety:** a 30 s idle timeout per step keeps the old values; too little travel is refused with a message.
+## Ручки: страница на кнопку, восемь колонок
 
-## TRS jack: MIDI out
+![Страница на кнопку](../assets/panel/knobs-page.svg)
 
-The SMK's 3.5 mm jack is a MIDI OUT (UART1 TX on PC7); the FM-1's is MIDI IN on PH8 (a key row on the SMK: keep
-that driver off). Send the same stream as USB MIDI out: hook the one function that queues USB MIDI packets and hand
-each packet to the TRS driver too, before the "USB configured" check, so the jack works without a computer.
+Одна логика для каждого меню: кнопка открывает свою страницу, K1-K8 задают восемь колонок страницы (по одной на
+голос или восемь параметров), `<` `>` листают страницы. Значение с двумя вариантами может сидеть на пэдах колонки.
+Экран рисует восемь колонок в порядке ручек, поэтому ручка i всегда означает колонку i.
 
-- **Bytes:** convert each USB-MIDI packet by its CIN (8..E channel messages, C/D two bytes, F single realtime
-  bytes, 2/3 system common); drop SysEx and any packet whose status does not match its CIN (a track with MIDI OFF
-  can produce status 0xFF). No running status needed.
-- **Ring and pace:** a 256-byte ring of whole messages (a full ring drops the message, never half). Drain it from
-  the 10 kHz timer tick, nested in the audio render too: one byte when the last has gone (TPND), never a wait loop.
-  That gives ~2500 bytes/s against the line's 3125.
-- **No hang:** a byte not done in 30 ticks (3 ms) is given up; after 4 in a row the jack goes quiet until the setting
-  is set again. A setting TRS MIDI OUT ON/OFF (default ON) in the settings menu.
-- **Adapter:** the SMK-37 is listed as type A (a community spec sheet, not measured); tell users to try type B if a
-  synth does not respond.
-- **Used in:** Snoop37 2.6.4 (`hal/smk_uart_tx.h`, `src/smk_midi_out.h`), not yet confirmed on a unit.
+- **Использовано в:** Makkuro37.
+- **Выбирать:** редизайн со многими параметрами на голос; одно правило заменяет много меню.
 
-## Knobs: the FM-1 top row
+## Кнопки: напечатанное назначение и четыре дополнительные
 
-![Knobs as the FM-1 top row](../assets/panel/knobs.svg)
+![Кнопки](../assets/panel/buttons.svg)
 
-K1-K8 are the FM-1's knobs: K1 is a virtual MASTER pot (the FM-1's pot is absolute; K1 is an encoder, so it
-steps a stored value, 24 of 1024 per detent in SLOOP), K2-K4 the encoders, K5-K8 the screen's four dials in
-their colours. One encoder step per detent. Keep the order the firmware's screen uses: SLOOP shows SELECT,
-ALGORITHM, PRESETS (K2, K3, K4); a firmware that shows SELECT, PRESETS, ALGORITHM keeps that order.
+14 кнопок FM-1 сохраняют свои задачи на той же значимой кнопке SMK: PATCH = HOME, CHORD = ENV,
+NOTE REPEAT = LFO, SCALE = SEL, PARA = EDIT, GLOBE = GLO, BT = SAVE, SEQ PLAY = PLAY, SEQ REC = REC,
+OCTAVE-/+ = OCT-/+. Четыре дополнительные: KNOB BANK и FADER BANK для банков или закрепления, `<` `>` для
+страниц (никогда не tempo). Полная таблица: [04-controls-mapping.md](04-controls-mapping.md). Используйте
+собственные названия кнопок прошивки в её документации (SLOOP называет SEL то, что Felucca называет SCL).
 
-- **Used in:** SLOOP, X0X, FoMni.
-- **Choose:** keeping the FM-1 workflow. Matching knob caps make it obvious.
+## Кнопки: по рядам
 
-## Knobs: a page per button, eight columns
+У FM-1 два ряда по шесть кнопок; сетка SMK — тоже два ряда по шесть. Когда прошивка группирует по рядам
+(например, ряд действий, ряд режимов), сохраняйте её ряды: верхний FM-1 к верхнему SMK, нижний к нижнему, слева
+направо. Напечатанные названия тогда больше не совпадают, поэтому экран и таблица органов управления говорят, что
+делает каждая кнопка.
 
-![A page per button](../assets/panel/knobs-page.svg)
+- **Выбирать:** руководство прошивки объясняет кнопки по рядам, а не по именам.
 
-One logic for every menu: a button opens its page, K1-K8 set the page's eight columns (one per voice, or eight
-parameters), `<` `>` turn the pages. A value with two choices can sit on the column's pads. The screen draws the
-eight columns in the knobs' order, so knob i always means column i.
+## Игрушка для детей
 
-- **Used in:** Makkuro37.
-- **Choose:** a redesign with many parameters per voice; one rule replaces many menus.
+Прошивка, на которой ребёнок играет один. Использовано в режиме Rainbow (полная Felucca за комбинацией).
 
-## Buttons: printed meaning and four extras
+- **Ограничение громкости.** Взрослые задают потолок; K1 никогда не превышает его. K1 — виртуальный
+  потенциометр, поэтому ограничивайте значение потенциометра (`smk_master`) так же, как и уровень, иначе
+  убавление ничего не делает много щелчков.
+- **Фиксированное velocity.** Слой читает velocity в `key_vel` и в очереди крайних клавиш. Поставьте один переключатель
+  там (режим Rainbow: `SMK_KEY_VELOCITY 0` = все клавиши и пэды на 100) вместо правки каждого места.
+- **Никакого меню из игрушки.** Ни одно случайное нажатие не открывает меню (и KNOB BANK тоже). Взрослые органы
+  (удержание кнопки, длинная комбинация) спрятаны намеренно: исключение владельца из правила «без скрытых
+  режимов», отмеченное в файле настройки.
+- **Два интерфейса.** Игрушка и полная прошивка получают свою компоновку (`modes:` в файле настройки).
+- **Обучение огоньками.** У SMK нет светодиодов клавиш. Пэды как белые клавиши могут зажигать следующую белую;
+  у чёрных клавиш пэда нет. Варианты: рояльная раскладка на пэдах (чёрные клавиши в верхнем ряду) или полоса
+  клавиатуры на экране.
 
-![Buttons](../assets/panel/buttons.svg)
+## Правила экрана и UX
 
-The FM-1's 14 buttons keep their jobs on the SMK button that means the same: PATCH = HOME, CHORD = ENV,
-NOTE REPEAT = LFO, SCALE = SEL, PARA = EDIT, GLOBE = GLO, BT = SAVE, SEQ PLAY = PLAY, SEQ REC = REC, OCTAVE-/+ =
-OCT-/+. The four extras: KNOB BANK and FADER BANK for banks or pins, `<` `>` for pages (never tempo). Full table:
-[04-controls-mapping.md](04-controls-mapping.md). Use the firmware's own button names in its docs (SLOOP calls
-SEL what Felucca calls SCL).
+Это правила владельца из прошедших переносов. Держитесь их, если владелец не скажет иначе.
 
-## Buttons: by row
-
-The FM-1 has two rows of six buttons; the SMK's grid is two rows of six too. When a firmware groups by row (for
-example one row of actions, one of modes), keep its rows: FM-1 top row to SMK top row, bottom to bottom, left to
-right. The printed names then no longer match, so the screen and the controls table say what each button does.
-
-- **Choose:** the firmware's manual explains its buttons by row rather than by name.
-
-## A toy for children
-
-A firmware a child plays alone. Used in Rainbow mode (with the full Felucca behind a combo).
-
-- **Volume cap.** The grown-ups set a cap; K1 never goes above it. K1 is a virtual pot, so clamp the pot value
-  (`smk_master`) as well as the level, or turning down does nothing for many detents.
-- **Fixed velocity.** The layer reads velocity in `key_vel` and in the outer-key queue. Put one switch there
-  (Rainbow mode: `SMK_KEY_VELOCITY 0` = every key and pad at 100) instead of editing each place.
-- **No menu from the toy.** No stray press opens a menu (not KNOB BANK either). The grown-up controls (a held
-  button, a long combo) are hidden on purpose: the owner's exception to "no hidden modes", noted in the setup file.
-- **Two UIs.** The toy and the full firmware each get their own mapping (`modes:` in the setup file).
-- **Teaching with lights.** The SMK has no key LEDs. Pads as white keys can light the next white key; black keys
-  have no pad. Options: the piano layout on the pads (black keys in the top row), or a keyboard strip on the screen.
-
-## Screen and UX rules
-
-These are the owner's rules from the ports so far. Keep them unless the owner says otherwise.
-
-1. **Group by meaning.** Screens are laid out by function, the knob block at the bottom of the screen, not in
-   the hardware's order.
-2. **Touch, then see.** The screen shows what you touch first: the value next to the thing it changes, and a
-   short hint line saying what the control does.
-3. **Same colour, same place.** A colour means the same thing on the screen, the pads and the knob caps; the
-   screen's layout follows the panel's. A firmware whose screen maps the FM-1's panel (for example its knobs as a
-   2x2 block) gets a map of the SMK's panel instead: eight knobs in one row, in the same order.
-4. **No hidden modes.** Every state is visible (an LED, a header, a colour). A held button only lends something
-   while it is held.
-5. **Play first.** Sound on power-on, few menus, nothing that needs the manual to make a noise.
+1. **Группируйте по смыслу.** Экраны компонуются по функции, блок ручек внизу экрана, а не в аппаратном порядке.
+2. **Тронь, затем увидь.** Экран показывает то, чего вы касаетесь первым: значение рядом с тем, что оно меняет,
+   и короткую строку подсказки, что делает орган управления.
+3. **Один цвет — одно место.** Цвет значит одно и то же на экране, пэдах и колпачках ручек; компоновка экрана
+   следует панели. Прошивка, чей экран отображает панель FM-1 (например, её ручки как блок 2x2), получает вместо
+   этого карту панели SMK: восемь ручек в один ряд, в том же порядке.
+4. **Без скрытых режимов.** Каждое состояние видимо (светодиод, заголовок, цвет). Удерживаемая кнопка одалживает
+   что-то только пока её держат.
+5. **Сначала играй.** Звук при включении, мало меню, ничего, что требует руководства, чтобы издать звук.

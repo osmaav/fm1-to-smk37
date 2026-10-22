@@ -1,42 +1,42 @@
 <!-- Русская версия: 1.0.0 (22.10.2026). Локализация репозитория fm1-to-smk37; при изменении обновляйте версию по SemVer. -->
 
-# 03: Porting a firmware, step by step
+# 03: Перенос прошивки шаг за шагом
 
-This walkthrough ports a Felucca-family FM-1 firmware to the SMK-37. The board layer comes in two forms:
+Это руководство переносит прошивку FM-1 из семейства Felucca на SMK-37. Слой платы поставляется в двух видах:
 
-- **SLOOP forks:** branch `smk37` of [genkigenki/sloop-fm1](https://github.com/genkigenki/sloop-fm1)
-  (isod89/sloop-fm1#112), commits on SLOOP 2.6 (`8fad1a1`). For forks of SLOOP 2.5: the patch series on branch
-  `smk37-board` of the archived [Snoop37](https://github.com/genkigenki/Snoop37).
-- **Felucca forks:** branch `smk37` of [genkigenki/Felucca](https://github.com/genkigenki/Felucca)
-  (hugelton/Felucca#237), commits on Felucca 1.6 (`1727537`): the SMK-37 target, an emulator fix, `SMK37.md`,
-  the Elite and MKE-P37 builds, copyright lines.
+- **Форки SLOOP:** ветка `smk37` в [genkigenki/sloop-fm1](https://github.com/genkigenki/sloop-fm1)
+  (isod89/sloop-fm1#112), коммиты поверх SLOOP 2.6 (`8fad1a1`). Для форков SLOOP 2.5: серия патчей на ветке
+  `smk37-board` архивного [Snoop37](https://github.com/genkigenki/Snoop37).
+- **Форки Felucca:** ветка `smk37` в [genkigenki/Felucca](https://github.com/genkigenki/Felucca)
+  (hugelton/Felucca#237), коммиты поверх Felucca 1.6 (`1727537`): цель SMK-37, исправление эмулятора, `SMK37.md`,
+  сборки Elite и MKE-P37, строки авторских прав.
 
-Both touch the same files; file names below are SLOOP's, Felucca's are mostly the same.
+Оба затрагивают те же файлы; имена файлов ниже — из SLOOP, у Felucca они в основном те же.
 
-**Ground rules for the port:**
+**Базовые правила переноса:**
 
-- Put every change behind one compile-time switch (`BOARD_SMK37`, default 0). Then the FM-1 build stays
-  **byte-identical**: compare the hashes of the app binary, the package and the loader before and after.
-- Never relax the flash allow-list (section 4.3).
-- Commit per area. Small commits make the next rebase on upstream easy.
+- Прячьте каждое изменение за одним флагом компиляции (`BOARD_SMK37`, по умолчанию 0). Тогда сборка FM-1 останется
+  **побайтово идентичной**: сравнивайте хеши бинарника приложения, пакета и загрузчика до и после.
+- Никогда не ослабляйте белый список флеш (раздел 4.3).
+- Коммитьте по областям. Небольшие коммиты облегчают будущий rebase на upstream.
 
-## 0. Prerequisites
+## 0. Предварительные условия
 
-- A Linux machine or WSL2. The JieLi toolchain is distributed for Linux. On Windows, run every build and test in
-  WSL, not in Git Bash (Git Bash mangles `$` in commands passed on to WSL; put longer commands in a script and run
-  `wsl bash script.sh`). The firmware's `BUILDING.md` may be written for macOS; the steps below work on Linux.
-- `git`, `sh`, a host C compiler, and Python 3 with **Pillow that has raqm** (`ImageFont.Layout`). Distribution
-  packages are often too old (Ubuntu 22.04's 9.0.1 fails); use a virtual environment:
+- Машина с Linux или WSL2. Инструменты JieLi распространяются для Linux. На Windows выполняйте все сборки и тесты в
+  WSL, а не в Git Bash (Git Bash портит `$` в командах, передаваемых в WSL; длинные команды кладите в скрипт и запускайте
+  `wsl bash script.sh`). `BUILDING.md` прошивки может быть написан для macOS; шаги ниже работают на Linux.
+- `git`, `sh`, host-компилятор C и Python 3 с **Pillow, собранным с raqm** (`ImageFont.Layout`). Дистрибутивные
+  пакеты часто слишком стары (9.0.1 в Ubuntu 22.04 не годится); используйте виртуальное окружение:
 
   ```sh
   python3 -m venv ~/.venv-fw && ~/.venv-fw/bin/pip install Pillow fonttools
   ~/.venv-fw/bin/python -c "from PIL import features; print(features.check('raqm'))"   # True
   ```
-- The JieLi pi32v2 toolchain. SLOOP and Felucca ship `tools/get_toolchain.sh`, which downloads it from JieLi's
-  package server into `~/.jieli/toolchain`. `JIELI_TOOLCHAIN` must name the directory that contains `pi32v2/`,
-  not a folder above it ("no toolchain").
-- A few files from the JieLi AC79 SDK (`fw-AC79_AIoT_SDK`, tag `AC79NN_SDK_V1.2.1_2023-12-13`, folder
-  `cpu/wl82/tools`). The firmware's `BUILDING.md` names them and their hashes. A sparse clone is enough:
+- Инструментальный набор JieLi pi32v2. SLOOP и Felucca несут `tools/get_toolchain.sh`, который скачивает его с
+  сервера пакетов JieLi в `~/.jieli/toolchain`. `JIELI_TOOLCHAIN` должен указывать на каталог, содержащий `pi32v2/`,
+  а не на каталог выше (иначе «no toolchain»).
+- Несколько файлов из JieLi AC79 SDK (`fw-AC79_AIoT_SDK`, тег `AC79NN_SDK_V1.2.1_2023-12-13`, папка
+  `cpu/wl82/tools`). `BUILDING.md` прошивки называет их и их хеши. Достаточно разреженного клона:
 
   ```sh
   git clone --depth 1 --filter=blob:none --sparse \
@@ -44,18 +44,18 @@ Both touch the same files; file names below are SLOOP's, Felucca's are mostly th
   git -C fw-AC79_AIoT_SDK sparse-checkout set cpu/wl82/tools
   ```
 
-- An SMK-37 with a **full flash backup** ([02-update-and-recovery.md](02-update-and-recovery.md),
-  section 3).
+- SMK-37 с **полным дампом флеш** ([02-update-and-recovery.md](02-update-and-recovery.md),
+  раздел 3).
 
-Line endings: Git for Windows converts to CRLF by default, and patches and build scripts break. Clone with
-`git clone -c core.autocrlf=false URL` (the option after `clone` is stored in the repository; `git -c ... clone`
-is not), or run `git config core.autocrlf false` in the clone and check out again. Check:
-`git config --local core.autocrlf` prints `false`.
+Концы строк: Git for Windows по умолчанию конвертирует в CRLF, из-за чего ломаются патчи и сборочные скрипты. Клонируйте с
+`git clone -c core.autocrlf=false URL` (опция после `clone` сохраняется в репозитории; `git -c ... clone` — нет),
+или выполните `git config core.autocrlf false` в клоне и заново сделайте checkout. Проверка:
+`git config --local core.autocrlf` должно вывести `false`.
 
-Overrides if the tools are not in their default places: `JIELI_TOOLCHAIN` (default `~/.jieli/toolchain`) and
-`AC79_SDK` (the SDK clone), as the firmware's `tools/build.py` reads them.
+Переопределения, если инструменты не на обычных местах: `JIELI_TOOLCHAIN` (по умолчанию `~/.jieli/toolchain`) и
+`AC79_SDK` (клон SDK) — так их читает `tools/build.py` прошивки.
 
-## 1. Get the firmware source and build it unchanged
+## 1. Получите исходники прошивки и соберите их без изменений
 
 ```sh
 git clone https://github.com/<author>/<firmware>.git
@@ -64,14 +64,14 @@ sh build.sh                       # FM-1 build
 sha256sum build/*.bin build/*.fwsc build/loader/ota.bin > ../fm1-reference.sha256
 ```
 
-The app binary, the package and the loader must match later; the other `.bin` files are intermediates. Builds
-embed `__DATE__` (the JieLi clang ignores `SOURCE_DATE_EPOCH`), so compare on the same day, or rebuild the
-baseline from the base commit on the day of the comparison: `git worktree add ../fm1-base <base>`.
+Бинарник приложения, пакет и загрузчик должны совпадать позже; прочие `.bin` файлы — промежуточные. Сборки
+встраивают `__DATE__` (clang JieLi игнорирует `SOURCE_DATE_EPOCH`), поэтому сравнивайте в один день или пересоберите
+базовую линию из базового коммита в день сравнения: `git worktree add ../fm1-base <base>`.
 
-Run the host tests if the project has them (`sh tests/run_tests.sh` in SLOOP). Note which tests already fail,
-so you do not blame the port for them later.
+Запустите host-тесты, если они есть в проекте (`sh tests/run_tests.sh` в SLOOP). Запомните, какие тесты уже падают,
+чтобы потом не обвинять в этом перенос.
 
-Find out what the firmware is based on:
+Выясните, на чём основана прошивка:
 
 ```sh
 git remote add sloop https://github.com/isod89/sloop-fm1.git
@@ -81,142 +81,142 @@ git merge-base HEAD sloop/main      # a SLOOP fork if this finds a recent commit
 git merge-base HEAD felucca/main    # otherwise a Felucca fork
 ```
 
-Many forks were started from a copy rather than a git fork. In that case, compare `firmware/hal/` and
-`tools/build.py` by hand with the closest SLOOP or Felucca release.
+Многие форки начаты с копии, а не с git-форка. В таком случае сравните `firmware/hal/` и
+`tools/build.py` вручную с ближайшим релизом SLOOP или Felucca.
 
-## 2. Get the board layer
+## 2. Получите слой платы
 
-**Felucca fork:** fetch the branch and cherry-pick all its commits on Felucca 1.6 (`1727537`), then go on with section 4:
+**Форк Felucca:** возьмите ветку и cherry-pick всех её коммитов поверх Felucca 1.6 (`1727537`), затем переходите к разделу 4:
 
 ```sh
 git remote add ref https://github.com/genkigenki/Felucca.git && git fetch ref smk37
 git switch -c smk37 && git cherry-pick -x 1727537..ref/smk37
 ```
 
-Then replace the layer's names with the project's: the package stem `felucca-smk37` (build.py, build.sh,
-BUILDING.md, run_tests.sh) and the `FELUCCA` family default (build.py, `tests/smk_owner_test.c`).
+Затем замените имена слоя на имена проекта: основа имени пакета `felucca-smk37` (build.py, build.sh,
+BUILDING.md, run_tests.sh) и семейный префикс по умолчанию `FELUCCA` (build.py, `tests/smk_owner_test.c`).
 
-Expect conflicts where the fork changed the build, the flash header, the UI input and the sequencer. A file the
-fork deleted (modify/delete conflict): keep it deleted and carry the SMK hunks to the fork's replacement.
+Ожидайте конфликтов там, где форк менял сборку, заголовок флеш, ввод UI и секвенсор. Файл, который
+форк удалил (конфликт modify/delete): оставьте удалённым и перенесите SMK-куски в его замену из форка.
 
-**Older Felucca forks.** Worked examples on genkigenki/Felucca: `rainbow-smk37` (Rainbow mode, a 1.1.5 fork) and
-`ghoulbox-smk37` (GHOULBOX, a 1.4.1 fork). Each is the layer's SMK-37 target and emulator fix, then the
-per-model and installer commits, adapted to the fork; take the one nearest your fork's base. What came up:
+**Старые форки Felucca.** Рабочие примеры на genkigenki/Felucca: `rainbow-smk37` (режим Rainbow, форк 1.1.5) и
+`ghoulbox-smk37` (GHOULBOX, форк 1.4.1). Каждый — цель SMK-37 и исправление эмулятора из слоя, затем
+коммиты по моделям и установщику, адаптированные к форку; берите ближайший к базе вашего форка. Что всплыло:
 
-- `fm6_vbank.c` (1.4.1) does not exist: `git rm` it and drop the FM6 voice bank hunks (`ST_SMK_VBANK`,
-  `FVB_HOME`). 1.1.5 has the same 10 stored objects, so `OBJ_COUNT == 10` stays.
-- Auto-merged hunks may call 1.5 functions (`home_tap()`, `midi_pc_poll()`) or list 1.5 build flags
-  (`FELUCCA_UAC_AS_FIRST` in build.py): remove or replace them.
-- The FM-1 half of `fm1_flash_map.h` takes the fork's own `fm1_flash.h` values, never the layer's: the layer's
-  carries `FL_VBANK`, which grows the FM-1 store range and breaks byte identity.
-- Expect conflicts in `ui_input.c`, `seq.c`, `project.c`, `main.c`, `build.py`, `fm1_flash.h` and `fm1ota.js`
-  (1.1.5: 8 files; 1.4.1: 4 files, BUILDING.md, build.py, seq.c, ui_input.c).
-- `FL_JEDEC_OK` and `FM1_OCT_BOTH` replace literals in shared code; on the FM-1 they expand to the old literals.
-  Check the FM-1 hashes right after the cherry-pick.
+- `fm6_vbank.c` (1.4.1) не существует: `git rm` его и уберите куски банка голосов FM6 (`ST_SMK_VBANK`,
+  `FVB_HOME`). У 1.1.5 те же 10 хранимых объектов, поэтому `OBJ_COUNT == 10` остаётся.
+- Автоматически слитые куски могут вызывать функции 1.5 (`home_tap()`, `midi_pc_poll()`) или перечислять флаги сборки 1.5
+  (`FELUCCA_UAC_AS_FIRST` в build.py): уберите или замените их.
+- Половина `fm1_flash_map.h` про FM-1 берёт собственные значения `fm1_flash.h` форка, никогда не значения слоя: слой
+  несёт `FL_VBANK`, что расширяет диапазон хранилища FM-1 и ломает побайтовую идентичность.
+- Ожидайте конфликтов в `ui_input.c`, `seq.c`, `project.c`, `main.c`, `build.py`, `fm1_flash.h` и `fm1ota.js`
+  (1.1.5: 8 файлов; 1.4.1: 4 файла, BUILDING.md, build.py, seq.c, ui_input.c).
+- `FL_JEDEC_OK` и `FM1_OCT_BOTH` заменяют литералы в общем коде; на FM-1 они раскрываются в старые литералы.
+  Проверьте хеши FM-1 сразу после cherry-pick.
 
-**SLOOP fork:** cherry-pick the SLOOP layer.
+**Форк SLOOP:** cherry-pick слоя SLOOP.
 
 ```sh
 git remote add ref https://github.com/genkigenki/sloop-fm1.git && git fetch ref smk37
 git switch -c smk37 && git cherry-pick -x 8fad1a1..ref/smk37
 ```
 
-A fork of SLOOP 2.5 can use the older patch series instead (section 3):
+Форк SLOOP 2.5 может вместо этого использовать старую серию патчей (раздел 3):
 
 ```sh
 git remote add snoop37 https://github.com/genkigenki/Snoop37.git && git fetch snoop37
 git format-patch <base>..snoop37/smk37-board -o ../smk37-patches   # <base>: the SLOOP release it starts from
 ```
 
-Both cover roughly these steps:
+Оба покрывают примерно эти шаги:
 
-1. **System:** board switch, identities, flash map and allow-list, update path, package layout, installer
-   changes, tests.
-2. **Board layer:** input HAL (`smk_input.h`), LCD pins and init, pad LEDs, first UI mapping.
-3. **Flash part:** accept JEDEC 0xEB6014.
-4. **Bring-up fixes from a real unit:** ADC timing, fader filter, pad rows, button names, console commands.
-5. **Wheels:** pitch bend and mod-wheel vibrato.
-6. **Controls:** one encoder step per detent, pad step display, outer keys, knob and fader layout, app slot size,
-   pad colours, button LEDs.
+1. **Система:** переключатель платы, идентичности, карта флеш и белый список, путь обновления, раскладка пакета,
+   изменения установщика, тесты.
+2. **Слой платы:** HAL ввода (`smk_input.h`), выводы и инициализация ЖК, светодиоды пэдов, первая разметка UI.
+3. **Флеш-часть:** принятие JEDEC 0xEB6014.
+4. **Исправления привязки с реального экземпляра:** тайминг АЦП, фильтр фейдеров, строки пэдов, названия кнопок, команды консоли.
+5. **Колёса:** питч-бенд и вибрато от колеса модуляции.
+6. **Ручки управления:** один шаг энкодера на щелчок, индикация шагов на пэдах, внешние клавиши, разметка ручек и фейдеров, размер слота приложения,
+   цвета пэдов, светодиоды кнопок.
 
-The optional Snoop37 look (boot intro, jingle, its own screens) is on branch `snoop37`, behind the build flag
-`SNOOP37` (default off), and is not part of the layer.
+Необязательный вид Snoop37 (заставка загрузки, джингл, свои экраны) лежит на ветке `snoop37` за флагом сборки
+`SNOOP37` (по умолчанию выключен) и не входит в слой.
 
-## 3. Apply the patch series (SLOOP 2.5 forks)
+## 3. Примените серию патчей (форки SLOOP 2.5)
 
-On a new branch:
+На новой ветке:
 
 ```sh
 git switch -c smk37
 git am -3 ../smk37-patches/*.patch
 ```
 
-`-3` lets git fall back to a three-way merge, so most conflicts end up as normal conflict markers. Resolve them,
-`git add` the files, and run `git am --continue`. If one patch is too far off, `git am --skip` it and redo it by
-hand from the table below. Then continue with the rest.
+`-3` позволяет git откатиться к трёхстороннему слиянию, поэтому большинство конфликтов превращаются в обычные маркеры конфликта.
+Разрешите их, `git add` файлы и выполните `git am --continue`. Если один патчер слишком далеко,
+`git am --skip` его и повторите вручную по таблице ниже. Затем продолжите с остальными.
 
-Cherry-picking works too: `git cherry-pick <base>..snoop37/smk37-board`.
+Cherry-pick тоже работает: `git cherry-pick <base>..snoop37/smk37-board`.
 
-**For a fork without SLOOP or Felucca history** (a copied tree), take the Felucca commits as a model and apply
-it file by file. New files (`smk_input.h`, `fm1_flash_map.h`, the SMK tests) go in unchanged. For the changed
-files, read each hunk and apply its intent.
+**Для форка без истории SLOOP или Felucca** (скопированное дерево) возьмите коммиты Felucca как образец и примените
+его файл за файлом. Новые файлы (`smk_input.h`, `fm1_flash_map.h`, SMK-тесты) добавляются без изменений. Для изменённых
+файлов прочитайте каждый кусок и примените его замысел.
 
-## 4. Resolve conflicts by area
+## 4. Разрешение конфликтов по областям
 
-| Area | Files (SLOOP names) | What the series does | Hints |
+| Область | Файлы (имена SLOOP) | Что делает серия | Подсказки |
 |---|---|---|---|
-| Board switch | `firmware/hal/fm1_cc.h` | defines `BOARD_SMK37` (default 0) | applies cleanly everywhere |
-| Build | `tools/build.py`, `build.sh`, `BUILDING.md` | `--board fm1\|smk37` (or `BOARD=` env); adds `-DBOARD_SMK37=1` to the app **and** the update loader; identity prefix `SMK-37 Pro_9`; output name; app slot `0x97400` written into a per-board copy of `app.ld` | Forks rename the package and the identity. Keep their names for the FM-1 and add the SMK entry next to them. The FM-1 path must not get any new compiler flag. |
-| Package | `tools/fm1pkg_make.py` | per-board tables: PRCT size `0x9D000`, the SMK region table (VM, PRCT, BTIF, USRTRIM, USRFLASH, USR with stock flags), app slot | Take the SMK table as it is. Do not merge it with the FM-1's. |
-| Input HAL | `firmware/hal/smk_input.h` (new), `fm1_input.h`, `felucca.c` includes | new HAL with the FM-1 API (`fm1_in`, `fm1_input_init`, `fm1_input_tick`, `fm1_input_scan`, `fm1_enc_take`, `fm1_input_edges`, `fm1_input_note_edges`, `fm1_led_key`) plus SMK extras: velocity, pads, faders, wheels, outer keys. `felucca.c` includes it instead of `fm1_input.h` and `fm1_adc.h`. | If the fork changed the FM-1 input API (renamed fields, added a shift layer), add the same names to `smk_input.h`. Do not change the scan order (see [01-hardware.md](01-hardware.md), 5.1). |
-| ADC | `smk_input.h` | MASTER pot becomes a virtual pot on encoder K1; battery from mux C | Forks that read more FM-1 pots need more virtual pots. Keep the SMK ADC timing. |
-| LCD and pad LEDs | `firmware/hal/fm1_lcd_hw.h`, `src/lcd.c` | pins PB6/PB7/PC8/PB5, SPI1 group A, no backlight, SMK init table; `fm1_padled_send` / `fm1_padled_done` switch SPI1 to group B for the LED frame | Forks that tuned the FM-1 init table: keep theirs under `#else`. The LED flush must run only between LCD transfers. |
-| Flash | `firmware/hal/fm1_flash.h`, `fm1_flash_map.h` (new) | allow-list of writable ranges, `_Static_assert`s against the protected ranges, an independent guard in the RAM flash driver, `FL_JEDEC_OK` with 0xEB6014 | **Never weaken this.** If the fork stores more objects, give them space inside `0x9D000-0xBAFFF` and extend the asserts. |
-| Storage | `src/storage.c`, `src/eng_sample.c`, `src/editor.c`, `src/project.c`, `src/console.c` | SMK sectors for every stored object (projects, preset, autosave, FM6 bank, settings) in `0x9D000-0xAEFFF`; two 80 KiB sample slots in `0xC2000-0xE9FFF`; slots 3 and 4 empty | The most fork-specific part. List every object by its enum (`OBJ_*`) with its FM-1 sectors; objects may share an A/B pair (told apart by a record type). FM-1 settings at `0xFC000`/`0xFD000` lie in the SMK's protected USR area and must move. Lay everything out in the store window, extras in `0xB1000-0xBAFFF`, and assert the end addresses. The Felucca layer's `_Static_assert(OBJ_COUNT == 10u)` stops the build for a new object, as intended. |
-| Update | `src/ota.c`, `loader/loader.c`, `loader/ldr_core.c`, `src/felucca.c` | staging `0xBB000`, update record at `0xBFF00`; record name `ota-SMK-37 Pro_016`; loader name `ota-SMK-37 Pro_900`; loader writes only the app area and VM; identities `SMK-37 Pro_900` / `SMK-37 Pro_000` | Felucca forks with their own loader name: keep the `ota-` prefix and the model text exactly. |
-| MIDI | `src/felucca.c` | TRS MIDI IN forced off on the SMK, with a build error if it is switched on | PH8 is a matrix row on the SMK. Keep the guard. |
-| UI | `src/main.c`, `src/panel.c`, `src/ui_input.c`, `src/seq.c`, `src/voice.c`, `src/bootguard.h` | button and knob defaults, pads as white keys, outer keys, faders, wheels, LED rules, power-on combos on the SMK's OCTAVE buttons | Expect most conflicts here. See section 5. |
-| Console | `src/console.c` | debug commands `smk`, `padtest`, `leds` | |
-| Host tools | `tools/fm1_install.py`, `web/fm1pkg.js`, `web/fm1ota.js`, web installer page | SMK port names, SMK identities, 20- or 36-block packages checked by CRC, the stock SMK package accepted for the return to stock | Forks often have their own web installer. Port the block detection and the port-name filter into it. Once it accepts SMK loaders, `resume()` must check the loader's model against the package (as `install()` does) and write nothing without the package identity; add a test. Older Felucca forks' `resume()` takes any loader without a product: fix it the same way. In an upstream PR, change `web/` only, never the built copy in `docs/`. |
-| Tests | `tests/*` | SMK flash-map test, package layout test, SMK variants of the update and loader tests | Run them. The loader test checks that the protected ranges stay untouched. |
+| Переключатель платы | `firmware/hal/fm1_cc.h` | определяет `BOARD_SMK37` (по умолчанию 0) | применяется везде чисто |
+| Сборка | `tools/build.py`, `build.sh`, `BUILDING.md` | `--board fm1\|smk37` (или переменная окружения `BOARD=`); добавляет `-DBOARD_SMK37=1` в приложение **и** в загрузчик обновлений; префикс идентичности `SMK-37 Pro_9`; имя вывода; слот приложения `0x97400` записывается в копию `app.ld` для каждой платы | Форки переименовывают пакет и идентичность. Сохраните их имена для FM-1 и добавьте запись SMK рядом. Путь FM-1 не должен получать новых флагов компилятора. |
+| Пакет | `tools/fm1pkg_make.py` | таблицы для каждой платы: размер PRCT `0x9D000`, таблица областей SMK (VM, PRCT, BTIF, USRTRIM, USRFLASH, USR со штатными флагами), слот приложения | Берите таблицу SMK как есть. Не сливайте её с таблицей FM-1. |
+| HAL ввода | `firmware/hal/smk_input.h` (новый), `fm1_input.h`, include'ы `felucca.c` | новый HAL с API FM-1 (`fm1_in`, `fm1_input_init`, `fm1_input_tick`, `fm1_input_scan`, `fm1_enc_take`, `fm1_input_edges`, `fm1_input_note_edges`, `fm1_led_key`) плюс расширения SMK: velocity, пэды, фейдеры, колёса, внешние клавиши. `felucca.c` включает его вместо `fm1_input.h` и `fm1_adc.h`. | Если форк менял API ввода FM-1 (переименовал поля, добавил слой shift), добавьте те же имена в `smk_input.h`. Не меняйте порядок сканирования (см. [01-hardware.md](01-hardware.md), 5.1). |
+| АЦП | `smk_input.h` | потенциометр MASTER становится виртуальной ручкой на энкодере K1; батарея с mux C | Форкам, читающим больше потенциометров FM-1, нужно больше виртуальных ручек. Сохраните тайминг АЦП SMK. |
+| ЖК и светодиоды пэдов | `firmware/hal/fm1_lcd_hw.h`, `src/lcd.c` | выводы PB6/PB7/PC8/PB5, SPI1 группа A, без подсветки, таблица инициализации SMK; `fm1_padled_send` / `fm1_padled_done` переключают SPI1 на группу B для кадра светодиодов | Форкам, подстроившим таблицу инициализации FM-1: держите свою под `#else`. Выливка кадров LED должна запускаться только между передачами ЖК. |
+| Флеш | `firmware/hal/fm1_flash.h`, `fm1_flash_map.h` (новый) | белый список записываемых диапазонов, `_Static_assert` против защищённых диапазонов, независимая защита в RAM-ном драйвере флеш, `FL_JEDEC_OK` с 0xEB6014 | **Никогда не ослабляйте это.** Если форк хранит больше объектов, дайте им место внутри `0x9D000-0xBAFFF` и расширьте assert'ы. |
+| Хранилище | `src/storage.c`, `src/eng_sample.c`, `src/editor.c`, `src/project.c`, `src/console.c` | сектора SMK для каждого хранимого объекта (проекты, пресет, автосохранение, банк FM6, настройки) в `0x9D000-0xAEFFF`; два 80 КиБ слота сэмплов в `0xC2000-0xE9FFF`; слоты 3 и 4 пусты | Самая форк-специфичная часть. Перечислите каждый объект по его enum (`OBJ_*`) с его секторами FM-1; объекты могут делить пару A/B (различаются типом записи). Настройки FM-1 на `0xFC000`/`0xFD000` лежат в защищённой области USR плат SMK и должны быть перенесены. Разметьте всё в окне хранилища, extras в `0xB1000-0xBAFFF`, и проверьте assert'ами конечные адреса. `_Static_assert(OBJ_COUNT == 10u)` слоя Felucca останавливает сборку при новом объекте — так и задумано. |
+| Обновление | `src/ota.c`, `loader/loader.c`, `loader/ldr_core.c`, `src/felucca.c` | staging `0xBB000`, запись обновления на `0xBFF00`; имя записи `ota-SMK-37 Pro_016`; имя загрузчика `ota-SMK-37 Pro_900`; загрузчик пишет только область приложения и VM; идентичности `SMK-37 Pro_900` / `SMK-37 Pro_000` | Форки Felucca со своим именем загрузчика: сохраните префикс `ota-` и текст модели точно. |
+| MIDI | `src/felucca.c` | TRS MIDI IN принудительно выключен на SMK, ошибка сборки если включён | PH8 на SMK — строка матрицы. Сохраните защиту. |
+| UI | `src/main.c`, `src/panel.c`, `src/ui_input.c`, `src/seq.c`, `src/voice.c`, `src/bootguard.h` | значения по умолчанию кнопок и ручек, пэды как белые клавиши, внешние клавиши, фейдеры, колёса, правила светодиодов, комбинации при включении питания на кнопках OCTAVE плат SMK | Ожидайте большинство конфликтов здесь. См. раздел 5. |
+| Консоль | `src/console.c` | отладочные команды `smk`, `padtest`, `leds` | |
+| Host-инструменты | `tools/fm1_install.py`, `web/fm1pkg.js`, `web/fm1ota.js`, веб-страница установщика | имена портов SMK, идентичности SMK, пакеты из 20 или 36 блоков, проверяемые по CRC, штатный пакет SMK принимается для возврата к штатной | Форки часто имеют свой веб-установщик. Перенесите определение блоков и фильтр имён портов в него. Как только он принимает загрузчики SMK, `resume()` должен сверять модель загрузчика с пакетом (как `install()`) и ничего не писать без идентичности пакета; добавьте тест. В upstream PR меняйте только `web/`, никогда собранную копию в `docs/`. |
+| Тесты | `tests/*` | SMK-тест карты флеш, тест раскладки пакета, SMK-варианты тестов обновления и загрузчика | Запускайте их. Тест загрузчика проверяет, что защищённые диапазоны остаются нетронутыми. |
 
-After this step, check two things:
+После этого шага проверьте две вещи:
 
 ```sh
 sh build.sh && sha256sum -c ../fm1-reference.sha256      # the FM-1 build is unchanged
 BOARD=smk37 sh build.sh                                   # the SMK build compiles and links
 ```
 
-## 5. Map the UI
+## 5. Разметка UI
 
-The FM-1 has 27 note keys, 14 buttons, 7 encoders and a MASTER pot. The SMK-37 has far more. The series maps
-it like this. Full tables are in [04-controls-mapping.md](04-controls-mapping.md).
+У FM-1 27 нотных клавиш, 14 кнопок, 7 энкодеров и потенциометр MASTER. У SMK-37 гораздо больше. Серия отображает
+это так. Полные таблицы в [04-controls-mapping.md](04-controls-mapping.md).
 
-| SMK-37 | Becomes | How |
+| SMK-37 | Становится | Как |
 |---|---|---|
-| keys 5..31 (F3..G5, the middle 27) | the FM-1's 27 note keys, with velocity | `smk_input.h` sets note bits 0..26 from keybed keys 5..31 |
-| keys 0..4 and 32..36 (C3..E3, G#5..C6) | extra notes on synth tracks, extra drum sounds on the drum track | a separate event queue (`smk_extkey_take`), handled in the UI |
-| 16 pads | the 16 **white** keys of the 27 (F3 G3 A3 B3 C4 D4 E4 F4 / G4 A4 B4 C5 D5 E5 F5 G5) | top row (hardware pads 0..7) = white keys 1..8 in a step grid; as a keyboard, low notes at the bottom (pads 8..15). Convert in one place (`SMK_PAD_OF_WHITE`); the pad sets the same note bit as the key |
-| pad LEDs | what the FM-1 key LEDs showed: steps, playhead, layer tiles, in the track colour | drawn from the UI state once per frame |
-| piano layout on the pads (optional) | for scale or key pages | bottom row C4..C5 white, top row the black keys between them |
-| K1..K8 | K1 MASTER (virtual pot), K2 SELECT, K3 ALGORITHM, K4 PRESETS, K5..K8 KNOB 1..4 | SLOOP's panel table (function to hardware id) |
-| 18 buttons | FM-1 functions by printed name, 4 left free | SLOOP's panel table. The hardware calibration combo re-teaches it. |
-| faders 1..4 | per-track level, filter, reverb send, delay send (FADER BANK switches) | a fader only takes over once it is moved |
-| pitch wheel, mod wheel | pitch bend of the selected synth track, vibrato | self-calibrating, see [01-hardware.md](01-hardware.md), 6.5 |
+| клавиши 5..31 (F3..G5, средние 27) | 27 нотных клавиш FM-1, с velocity | `smk_input.h` выставляет биты нот 0..26 из клавиш k = 5..31 |
+| клавиши 0..4 и 32..36 (C3..E3, G#5..C6) | дополнительные ноты на синтезаторных дорожках, дополнительные удары на барабанной дорожке | отдельная очередь событий (`smk_extkey_take`), обрабатывается в UI |
+| 16 пэдов | 16 **белых** клавиш из 27 (F3 G3 A3 B3 C4 D4 E4 F4 / G4 A4 B4 C5 D5 E5 F5 G5) | верхний ряд (аппаратные пэды 0..7) = белые клавиши 1..8 в сетке шагов; как клавиатура — низкие ноты снизу (пэды 8..15). Преобразуйте в одном месте (`SMK_PAD_OF_WHITE`); пэд выставляет тот же бит ноты, что и клавиша |
+| светодиоды пэдов | то, что показывали светодиоды клавиш FM-1: шаги, каретка, плитки слоёв, в цвете дорожки | рисуются из состояния UI раз за кадр |
+| рояльная раскладка на пэдах (опционально) | для страниц гам или тональностей | нижний ряд C4..C5 белые, верхний ряд чёрные клавиши между ними |
+| K1..K8 | K1 MASTER (виртуальный потенциометр), K2 SELECT, K3 ALGORITHM, K4 PRESETS, K5..K8 KNOB 1..4 | таблица панели SLOOP (функция -> аппаратный id) |
+| 18 кнопок | функции FM-1 по надписи на корпусе, 4 свободны | таблица панели SLOOP. Аппаратная калибровочная комбинация переобучает её. |
+| фейдеры 1..4 | уровень каждой дорожки, фильтр, посыл реверба, посыл дилэя (переключение FADER BANK) | фейдер перехватывает управление только после движения |
+| колесо питча, колесо модуляции | питч-бенд выбранной синтезаторной дорожки, вибрато | самокалибруются, см. [01-hardware.md](01-hardware.md), 6.5 |
 
-Hints for other firmwares:
+Подсказки для других прошивок:
 
-- **Start from the FM-1 behaviour.** Map the 27 middle keys, the pads as white keys, and the FM-1's buttons and
-  knobs. Then the fork's manual applies on the SMK as it is. Use the extra controls only after that.
-- If the fork reads FM-1 note keys by key id (14..40 on the FM-1), translate in one place. Do not spread
-  `BOARD_SMK37` through the UI code.
-- A pad press must end the note it started, even when the layout changed while it was held. The reference HAL
-  stores the note per pad for this reason.
-- The FM-1 power-on combos use OCT- and OCT+. They map to OCTAVE- and OCTAVE+ (button ids 4 and 5).
-- Firmwares with a stored button map (SLOOP's panel table) need a new magic number for the SMK, so that an FM-1
-  map is never loaded on the SMK.
+- **Начинайте с поведения FM-1.** Отметьте 27 средних клавиш, пэды как белые клавиши и кнопки/ручки FM-1.
+  Тогда инструкция форка применима на SMK как есть. Используйте дополнительные органы управления только после этого.
+- Если форк читает нотные клавиши FM-1 по id клавиши (14..40 на FM-1), преобразуйте в одном месте. Не разносите
+  `BOARD_SMK37` по коду UI.
+- Нажатие пэда должно завершить ноту, которую начало, даже если разметка сменилась, пока пэд удерживался. Эталонный HAL
+  хранит ноту для каждого пэда именно поэтому.
+- Комбинации включения питания FM-1 используют OCT- и OCT+. Они отображаются на OCTAVE- и OCTAVE+ (id кнопок 4 и 5).
+- Прошивкам с хранимой картой кнопок (таблица панели SLOOP) нужно новое магическое число для SMK, чтобы карта
+  FM-1 никогда не загружалась на SMK.
 
-## 6. Build
+## 6. Сборка
 
 ```sh
 BOARD=smk37 sh build.sh && cp build/<app>.fwsc ../        # keep the SMK package
@@ -224,48 +224,48 @@ sh build.sh && sha256sum -c ../fm1-reference.sha256       # FM-1 last: both boar
 sh tests/run_tests.sh                                     # the tests expect FM-1 binaries
 ```
 
-The reference build writes `build/sloop-smk37.fwsc` (identity `SMK-37 Pro_900`). Check:
+Эталонная сборка пишет `build/sloop-smk37.fwsc` (идентичность `SMK-37 Pro_900`). Проверьте:
 
-- the app fits the `0x97400` slot (the linker fails otherwise). The Felucca layer costs about 1.8 KB of flash and
-  1.2 KB of RAM over the FM-1 build (Rainbow mode: 538,448 B vs 536,656 B; RAM 94,468 vs 93,220 of 98,304 B). A fork
-  with less than 2 KB of RAM left needs room first. A full fork fits: GHOULBOX 2.1 had 4.5 KB left in the FM-1
-  slot and its SMK image (578,400 B) sits well inside the SMK's 619,520 B,
-- the package identity is `SMK-37 Pro_9xx`,
-- the host tests show no new failures (the SMK tests: flash map, owner tag, package, update, loader). Most forks
-  have no UI test for the SMK mapping; that part is checked on the device.
+- приложение помещается в слот `0x97400` (иначе линковка падает). Слой Felucca стоит около 1,8 КиБ флеш и
+  1,2 КиБ ОЗУ сверх сборки FM-1 (режим Rainbow: 538 448 Б против 536 656 Б; ОЗУ 94 468 против 93 220 из 98 304 Б). Форку,
+  у которого остаётся меньше 2 КиБ ОЗУ, сначала нужно место. Полный форк помещается: у GHOULBOX 2.1 оставалось 4,5 КиБ в слоте FM-1,
+  и его SMK-образ (578 400 Б) свободно размещается внутри 619 520 Б слота SMK,
+- идентичность пакета — `SMK-37 Pro_9xx`,
+- host-тесты не показывают новых падений (SMK-тесты: карта флеш, тег владельца, пакет, обновление, загрузчик). У большинства форков
+  нет UI-теста для разметки SMK; эта часть проверяется на устройстве.
 
-## 7. Test on the device
+## 7. Тестирование на устройстве
 
-1. Make the full flash backup if you have not done so yet.
-2. Install the SMK package ([02-update-and-recovery.md](02-update-and-recovery.md), section 4).
-3. Turn on the USB serial console. In SLOOP-based firmware: hold the HOME button (PATCH on the SMK), go to
-   AUDIO, set USB SERIAL to ON, then restart. A build with `FELUCCA_CDC_ON=1` has the console on from the start.
-   Open the serial port at any baud rate.
-4. Work through the bring-up checklist:
+1. Сделайте полный дамп флеш, если ещё не сделали.
+2. Установите пакет SMK ([02-update-and-recovery.md](02-update-and-recovery.md), раздел 4).
+3. Включите USB-последовательную консоль. В прошивках на базе SLOOP: удерживайте кнопку HOME (на SMK — PATCH), перейдите в
+   AUDIO, установите USB SERIAL в ON, затем перезапустите. Сборка с `FELUCCA_CDC_ON=1` имеет консоль с самого начала.
+   Откройте последовательный порт на любой скорости.
+4. Пройдите чек-лист привязки:
 
-| Check | Console / action | Expected |
+| Проверка | Консоль / действие | Ожидание |
 |---|---|---|
-| ADC runs | `smk`: `adc_ok` rises, `adc_miss` stays near 0 | if `adc_miss` rises, the ADC timing is wrong |
-| Pads | `smk`: `pad raw` and `pad base` per pad | idle near the baseline, a hit well above it; the top row is pads 0..7 |
-| Pad LED colours and order | `padtest` | hardware pads 8..11 light red, green, blue, white (for 20 s): the first four of the **bottom** row (some console texts say "top row"; trust the unit) |
-| Pad LED state | `leds` | the colour word the firmware holds for each pad |
-| Faders | `smk`: `fader raw` and `fader` | raw 0..1023, value 0..127, both ends reachable |
-| Wheels | `smk`: `wheel0`, `wheel1`, `bend`, `modw` | pitch rests around 535, mod moves the other way (up = lower raw) |
-| Buttons | `smk`: `buttons` bit mask | one bit per button, ids as in [01-hardware.md](01-hardware.md), 5.3 |
-| Encoders | `smk`: `enc0..enc7` | one step per detent, K1..K8 in order |
-| Keys | play all 37 keys softly and hard | notes from C3 to C6, velocity follows the stroke |
-| Flash | `flr` (read a flash window), save a project, power-cycle | the project survives; `0xC1224` still reads `trimdat` |
-| Audio, USB MIDI, USB audio | play | as on the FM-1 |
+| АЦП работает | `smk`: `adc_ok` растёт, `adc_miss` остаётся около 0 | если `adc_miss` растёт — тайминг АЦП неверен |
+| Пэды | `smk`: `pad raw` и `pad base` для каждого пэда | покой около базовой линии, удар заметно выше неё; верхний ряд — пэды 0..7 |
+| Цвета и порядок светодиодов пэдов | `padtest` | аппаратные пэды 8..11 светятся красным, зелёным, синим, белым (20 с): первые четыре **нижнего** ряда (некоторые тексты консоли говорят «верхний ряд»; верьте экземпляру) |
+| Состояние светодиодов пэдов | `leds` | цветовое слово, которое прошивка держит для каждого пэда |
+| Фейдеры | `smk`: `fader raw` и `fader` | сырое 0..1023, значение 0..127, оба конца достижимы |
+| Колёса | `smk`: `wheel0`, `wheel1`, `bend`, `modw` | питч в покое около 535, mod движется в обратную сторону (вверх = меньшее сырое) |
+| Кнопки | `smk`: битовая маска `buttons` | один бит на кнопку, id как в [01-hardware.md](01-hardware.md), 5.3 |
+| Энкодеры | `smk`: `enc0..enc7` | один шаг на щелчок, K1..K8 по порядку |
+| Клавиши | сыграйте все 37 клавиш тихо и сильно | ноты от C3 до C6, velocity следует за ударом |
+| Флеш | `flr` (прочитать окно флеш), сохранить проект, перезапустить питание | проект выживает; `0xC1224` всё ещё читается как `trimdat` |
+| Звук, USB MIDI, USB audio | играйте | как на FM-1 |
 
-5. When something is wrong, compare with the reference implementation before changing hardware constants. Most
-   bring-up bugs were in timing (ADC) and filtering (faders), not in the pin maps.
+5. Когда что-то не так, сравните с эталонной реализацией, прежде чем менять аппаратные константы. Большинство
+   багов привязки были в таймингах (АЦП) и фильтрации (фейдеры), а не в картах выводов.
 
-## 8. Release and roll back
+## 8. Релиз и откат
 
-- The goal is an upstream pull request ([AGENTS.md](../AGENTS.md), "The goal"): the project's own name and look,
-  `SMK37.md` at the top level and one README line, sources only. The maintainer builds and publishes the site
+- Цель — pull request в upstream ([AGENTS.md](../AGENTS.md), «Цель»): собственное имя и вид проекта,
+  `SMK37.md` на верхнем уровне и одна строка в README, только исходники. Сопровождающий собирает и публикует сайт
   (`docs/`).
-- Until it is merged, release from your fork of the original: build with the release version (the identity
-  becomes `SMK-37 Pro_9XY`) and attach `<project>-smk37[-elite|-mke].fwsc`, under GPL-3.0 like the code it comes
-  from. Never ship stock firmware files or flash dumps. Archive the fork once the PR is merged.
-- To go back to stock: [02-update-and-recovery.md](02-update-and-recovery.md), section 6.
+- Пока он не принят, выпускайте из своего форка оригинала: собирайте с релизной версией (идентичность
+  становится `SMK-37 Pro_9XY`) и прикладывайте `<project>-smk37[-elite|-mke].fwsc` под GPL-3.0, как код, из которого он происходит.
+  Никогда не распространяйте файлы штатной прошивки или дампы флеш. Архивируйте форк после принятия PR.
+- Чтобы вернуться к штатной прошивке: [02-update-and-recovery.md](02-update-and-recovery.md), раздел 6.

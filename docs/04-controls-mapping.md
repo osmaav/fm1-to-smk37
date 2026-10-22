@@ -1,91 +1,91 @@
 <!-- Русская версия: 1.0.0 (22.10.2026). Локализация репозитория fm1-to-smk37; при изменении обновляйте версию по SemVer. -->
 
-# 04: Controls mapping
+# 04: Разметка органов управления
 
-How each FM-1 control and its SLOOP function lands on the SMK-37 in the reference port (SLOOP's SMK-37 build). Use it as
-a template for other firmwares. The FM-1 column and the SLOOP column hold for any SLOOP fork. For a Felucca fork,
-replace the SLOOP column with the fork's own functions.
+Как каждый орган управления FM-1 и его функция SLOOP размещаются на SMK-37 в эталонном порту (сборка SLOOP для SMK-37). Используйте его как
+шаблон для других прошивок. Колонка FM-1 и колонка SLOOP справедливы для любого форка SLOOP. Для форка Felucca
+замените колонку SLOOP на функции самого форка.
 
-The rule behind the mapping: **every FM-1 control keeps a home on the SMK**, so the original manual still applies.
-The SMK's extra controls (outer keys, faders, wheels, spare buttons) add to that and never replace it.
+Правило разметки: **каждый орган управления FM-1 сохраняет место на SMK**, поэтому оригинальная инструкция остаётся применимой.
+Дополнительные органы SMK (внешние клавиши, фейдеры, колёса, запасные кнопки) дополняют его и никогда не заменяют.
 
-## Knobs, faders, wheels
+## Ручки, фейдеры, колёса
 
-| FM-1 (printed) | SLOOP function | SMK-37 (printed) | SLOOP on the SMK-37 |
+| FM-1 (надпись) | Функция SLOOP | SMK-37 (надпись) | SLOOP на SMK-37 |
 |---|---|---|---|
-| MASTER (pot, top left) | output volume | K1 | master volume (a virtual pot: 24 of 1024 steps per detent) |
-| SELECT (large encoder) | tempo on the TRACKS screen, page left/right, visualiser style, menu section | K2 | SELECT: tempo, pages |
-| ALGORITHM | select track 1..4 | K3 | track |
-| PRESETS | sound (synth tracks), kit (drums) | K4 | sound, kit |
-| KNOB 1 | on-screen dial 1 (blue) | K5 | dial 1 |
-| KNOB 2 | on-screen dial 2 (green) | K6 | dial 2 |
-| KNOB 3 | on-screen dial 3 (yellow) | K7 | dial 3 |
-| KNOB 4 | on-screen dial 4 (orange) | K8 | dial 4 |
-| none | | FADER 1..4 | tracks 1..4 (4 = drums). FADER BANK picks what they set: A level, B filter (left low-pass, centre open, right high-pass), C reverb send, D delay send. A fader takes over only once it is moved. |
-| none (SLOOP has no wheels) | | PITCH wheel | pitch bend of the selected synth track, +-7 semitones |
-| none | | MOD wheel | vibrato at 10 Hz, up to +-1 semitone (up = more) |
-| none | | PEDAL jack | not used yet |
+| MASTER (потенциометр, сверху слева) | громкость выхода | K1 | общая громкость (виртуальная ручка: 24 шага из 1024 на щелчок) |
+| SELECT (большой энкодер) | темп на экране TRACKS, листание страниц влево/вправо, стиль визуализатора, раздел меню | K2 | SELECT: темп, страницы |
+| ALGORITHM | выбор дорожки 1..4 | K3 | дорожка |
+| PRESETS | звук (синтезаторные дорожки), набор (барабаны) | K4 | звук, набор |
+| KNOB 1 | экранный регулятор 1 (синий) | K5 | регулятор 1 |
+| KNOB 2 | экранный регулятор 2 (зелёный) | K6 | регулятор 2 |
+| KNOB 3 | экранный регулятор 3 (жёлтый) | K7 | регулятор 3 |
+| KNOB 4 | экранный регулятор 4 (оранжевый) | K8 | регулятор 4 |
+| нет | | FADER 1..4 | дорожки 1..4 (4 = барабаны). FADER BANK выбирает, что они задают: A уровень, B фильтр (слева низкие частоты, в центре открыто, справа высокие частоты), C посыл реверба, D посыл дилэя. Фейдер перехватывает управление только после движения. |
+| нет (у SLOOP нет колёс) | | колесо PITCH | питч-бенд выбранной синтезаторной дорожки, +-7 полутонов |
+| нет | | колесо MOD | вибрато при 10 Гц, до +-1 полутона (вверх = сильнее) |
+| нет | | джек PEDAL | пока не используется |
 
-## Buttons
+## Кнопки
 
-| FM-1 (printed) | SLOOP tap | SLOOP hold (layer) | SMK-37 (printed) | SLOOP on the SMK-37 |
+| FM-1 (надпись) | SLOOP короткое нажатие | SLOOP удержание (слой) | SMK-37 (надпись) | SLOOP на SMK-37 |
 |---|---|---|---|---|
-| PLAY | start / stop (LED flashes on the beat) | | SEQ PLAY | PLAY |
-| REC | record / arm | 2 s: clear track | SEQ REC | REC |
-| HOME | TRACKS screen; again: visualiser | settings menu | PATCH | HOME |
-| ENV | envelope pages | | CHORD | ENV |
-| LFO | LFO pages | | NOTE REPEAT | LFO |
-| FX | effect pages | punch-in effects on the keys | FX | FX |
-| SEL | key and chord pages | key layer | SCALE | SEL (the key layer shows a piano layout on the pads) |
-| EDIT | sound pages, drum kit | erase layer | PARA | EDIT |
-| ARP | arpeggiator pages | note repeat (rolls) | ARP | ARP (LED lit while the selected track's arpeggiator runs) |
-| SEQ | step and pattern pages | step layer (steps 1..16) | SEQ | SEQ |
-| GLO | global, master, system | mix layer (mute, solo, fill, tap) | GLOBE | GLO |
-| SAVE | song screen, save | song layer (slots A..D) | BT | SAVE (SLOOP has no Bluetooth) |
-| OCT- | octave down | drums: ghost hits | OCTAVE- | OCT- |
-| OCT+ | octave up | drums: hard hits | OCTAVE+ | OCT+ |
-| none | | | KNOB BANK | free |
-| none | | | FADER BANK | fader bank A, B, C, D (shown on screen; LED lit when not on A) |
-| none | | | < | page back (like SELECT, never tempo). With SEQ held: step page back. On the visualiser: style. |
-| none | | | > | page forward. With SEQ held: step page forward. On the visualiser: style. |
+| PLAY | старт / стоп (светодиод мигает в такт) | | SEQ PLAY | PLAY |
+| REC | запись / подготовка к записи | 2 с: очистить дорожку | SEQ REC | REC |
+| HOME | экран TRACKS; снова: визуализатор | меню настроек | PATCH | HOME |
+| ENV | страницы огибающей | | CHORD | ENV |
+| LFO | страницы LFO | | NOTE REPEAT | LFO |
+| FX | страницы эффектов | панч-ин эффектов на клавишах | FX | FX |
+| SEL | страницы тональностей и гам | слой клавиш | SCALE | SEL (слой клавиш показывает рояльную раскладку на пэдах) |
+| EDIT | страницы звука, барабанный набор | слой стирания | PARA | EDIT |
+| ARP | страницы арпеджиатора | повтор нот (роллы) | ARP | ARP (светодиод горит, пока арпеджиатор выбранной дорожки работает) |
+| SEQ | страницы шагов и паттернов | слой шагов (шаги 1..16) | SEQ | SEQ |
+| GLO | глобальные, мастер, система | слой микса (mute, solo, fill, tap) | GLOBE | GLO |
+| SAVE | экран песни, сохранение | слой песни (слоты A..D) | BT | SAVE (у SLOOP нет Bluetooth) |
+| OCT- | октава вниз | барабаны: ghost hits | OCTAVE- | OCT- |
+| OCT+ | октава вверх | барабаны: hard hits | OCTAVE+ | OCT+ |
+| нет | | | KNOB BANK | свободно |
+| нет | | | FADER BANK | банк фейдеров A, B, C, D (показывается на экране; светодиод горит, когда не на A) |
+| нет | | | < | страница назад (как SELECT, но никогда темп). С зажатой SEQ: шаг назад по страницам. На визуализаторе: стиль. |
+| нет | | | > | страница вперёд. С зажатой SEQ: шаг вперёд по страницам. На визуализаторе: стиль. |
 
-## Keys and pads
+## Клавиши и пэды
 
-| FM-1 | SLOOP | SMK-37 | SLOOP on the SMK-37 |
+| FM-1 | SLOOP | SMK-37 | SLOOP на SMK-37 |
 |---|---|---|---|
-| 27 keys F3..G5 | notes; in layers: tiles (steps, effects, mix, ...) | middle 27 keys F3..G5 | the same, with velocity |
-| none | | lowest 5 keys C3..E3 | synth tracks: notes. Drum track: C3 kick, D3 snare, E3 hi-hat (a black key plays its left white neighbour). |
-| none | | highest 5 keys G#5..C6 | synth tracks: notes. Drum track: G#5 cowbell, A5 open hi-hat, B5 crash, C6 ride. |
-| LEDs under the 27 keys | what is on or playing | 16 RGB pads | the pads are the 16 **white** keys (as steps and tiles: top row 1..8, bottom row 9..16), with velocity. Lit in the screen's track colours (blue, green, yellow, orange): steps lit, playhead and hits bright, off is dark. SEL layer: piano layout. SAVE layer: used slots green, free slots white. |
+| 27 клавиш F3..G5 | ноты; в слоях: плитки (шаги, эффекты, микс, ...) | средние 27 клавиш F3..G5 | то же, с velocity |
+| нет | | нижние 5 клавиш C3..E3 | синтезаторные дорожки: ноты. Барабанная дорожка: C3 бас, D3 рабочий, E3 хэт (чёрная клавиша играет своего левого белого соседа). |
+| нет | | верхние 5 клавиш G#5..C6 | синтезаторные дорожки: ноты. Барабанная дорожка: G#5 коубелл, A5 открытый хэт, B5 кэш, C6 райд. |
+| светодиоды под 27 клавишами | что включено или играется | 16 RGB-пэдов | пэды — это 16 **белых** клавиш (как шаги и плитки: верхний ряд 1..8, нижний ряд 9..16), с velocity. Горят в цветах дорожек экрана (синий, зелёный, жёлтый, оранжевый): активные шаги горят, каретка и удары ярко, выключенные тускло. Слой SEL: рояльная раскладка. Слой SAVE: занятые слоты зелёные, свободные белые. |
 
-White key to pad. Hardware pads 0..7 are the top row, 8..15 the bottom row ([01-hardware.md](01-hardware.md), 6.3).
-The SMK-37 build uses two orders: as a step grid or tiles the pads read like text; as a keyboard the low notes are at the
+Белая клавиша -> пэд. Аппаратные пэды 0..7 — верхний ряд, 8..15 — нижний ряд ([01-hardware.md](01-hardware.md), 6.3).
+Сборка для SMK-37 использует два порядка: как сетка шагов или плитки пэды читаются как текст; как клавиатура низкие ноты снизу.
 bottom.
 
-| White key | F3 | G3 | A3 | B3 | C4 | D4 | E4 | F4 | G4 | A4 | B4 | C5 | D5 | E5 | F5 | G5 |
+| Белая клавиша | F3 | G3 | A3 | B3 | C4 | D4 | E4 | F4 | G4 | A4 | B4 | C5 | D5 | E5 | F5 | G5 |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| Step grid, tiles | top 1 | top 2 | top 3 | top 4 | top 5 | top 6 | top 7 | top 8 | bottom 1 | bottom 2 | bottom 3 | bottom 4 | bottom 5 | bottom 6 | bottom 7 | bottom 8 |
-| Hardware pad (grid) | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 |
-| Keyboard | bottom 1 | bottom 2 | bottom 3 | bottom 4 | bottom 5 | bottom 6 | bottom 7 | bottom 8 | top 1 | top 2 | top 3 | top 4 | top 5 | top 6 | top 7 | top 8 |
-| Hardware pad (keyboard) | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
+| Сетка шагов, плитки | верх 1 | верх 2 | верх 3 | верх 4 | верх 5 | верх 6 | верх 7 | верх 8 | низ 1 | низ 2 | низ 3 | низ 4 | низ 5 | низ 6 | низ 7 | низ 8 |
+| Аппаратный пэд (сетка) | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 |
+| Клавиатура | низ 1 | низ 2 | низ 3 | низ 4 | низ 5 | низ 6 | низ 7 | низ 8 | верх 1 | верх 2 | верх 3 | верх 4 | верх 5 | верх 6 | верх 7 | верх 8 |
+| Аппаратный пэд (клавиатура) | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
 
-Piano layout (on request of the UI): the top row plays C4 D4 E4 F4 G4 A4 B4 C5, and the bottom row the black keys
-between them (C#4 D#4, gap, F#4 G#4 A#4, gap, C#5).
+Рояльная раскладка (по просьбе со стороны UI): верхний ряд играет C4 D4 E4 F4 G4 A4 B4 C5, а нижний ряд — чёрные клавиши
+между ними (C#4 D#4, промежуток, F#4 G#4 A#4, промежуток, C#5).
 
-## Power-on and special combos
+## Комбинации при включении питания и специальные
 
-Unchanged from SLOOP on the FM-1. OCT- and OCT+ are the SMK's OCTAVE- and OCTAVE+.
+Без изменений относительно SLOOP на FM-1. OCT- и OCT+ — это OCTAVE- и OCTAVE+ платы SMK.
 
-| Combo | Does |
+| Комбинация | Делает |
 |---|---|
-| OCTAVE- held at power-on | USB rescue mode |
-| OCTAVE- + OCTAVE+ held at power-on | hardware calibration (re-teach which button and knob does what) |
-| OCTAVE- + OCTAVE+ held 5 s while stopped | mask-ROM bootloader (UBOOT), for flash backups |
+| OCTAVE- удерживается при включении питания | режим аварийного восстановления USB |
+| OCTAVE- + OCTAVE+ удерживаются при включении питания | аппаратная калибровка (переобучение, какая кнопка и ручка что делает) |
+| OCTAVE- + OCTAVE+ удерживаются 5 с при остановке | загрузчик mask-ROM (UBOOT) для дампов флеш |
 
-## Ideas not built yet
+## Идеи, ещё не реализованные
 
-- KNOB BANK: switch K5..K8 to the page's next four parameters.
-- A master effects bank for the faders.
-- Pedal: sustain, or start/stop.
-- Pad pressure (measured by the HAL, unused so far) as a modulation source.
-- TRS MIDI OUT (UART1 on PC7).
+- KNOB BANK: переключать K5..K8 на следующие четыре параметра страницы.
+- Банк мастер-эффектов для фейдеров.
+- Педаль: сустейн или старт/стоп.
+- Давление пэда (измеряется HAL, пока не используется) как источник модуляции.
+- TRS MIDI OUT (UART1 на PC7).

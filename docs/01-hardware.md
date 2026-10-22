@@ -1,118 +1,118 @@
 <!-- Русская версия: 1.0.0 (22.10.2026). Локализация репозитория fm1-to-smk37; при изменении обновляйте версию по SemVer. -->
 
-# 01: SMK-37 hardware map (compared with the FM-1)
+# 01: Карта оборудования SMK-37 (в сравнении с FM-1)
 
-This is the datasheet the port needs. The SMK-37 Pro, SMK-37 Elite and MKE-P37 (and the Donner Starrykey 37 Play)
-share this hardware and run the same firmware (one package per model name). Each section lists the SMK-37 facts,
-how they differ from the FM-1, and what a port must do.
+Это паспорт данных, необходимый для переноса. SMK-37 Pro, SMK-37 Elite и MKE-P37 (а также Donner Starrykey 37 Play)
+разделяют это оборудование и работают на одной и той же прошивке (один пакет на имя модели). В каждом разделе приведены факты о SMK-37,
+их отличия от FM-1 и то, что обязан сделать порт.
 
-Status tags:
+Метки статуса:
 
-- **verified**: checked on a real SMK-37 Pro with a custom firmware (the reference port's debug console, a
-  flash read over the mask-ROM bootloader, or plain use).
-- **analysis**: read from the stock firmware (version 016) with concrete constants, but not yet confirmed on
-  hardware.
-- **open**: not known yet.
+- **verified (проверено)**: подтверждено на настоящем SMK-37 Pro с пользовательской прошивкой (консоль отладки эталонного порта,
+  чтение флеш-памяти через загрузчик mask-ROM или обычное использование).
+- **analysis (анализ)**: извлечено из штатной прошивки (версия 016) с конкретными константами, но ещё не подтверждено на
+  оборудовании.
+- **open (неизвестно)**: пока не известно.
 
-Register addresses are physical SFR addresses of the AC791N. Pin names follow JieLi's port naming (PA0..PH15).
-Where the stock firmware uses numeric pin ids, PA0 = 0x00, PB0 = 0x10, PC0 = 0x20, ..., PH0 = 0x70.
+Адреса регистров — физические адреса SFR микросхемы AC791N. Имена выводов следуют нотации портов JieLi (PA0..PH15).
+Там, где штатная прошивка использует числовые id выводов: PA0 = 0x00, PB0 = 0x10, PC0 = 0x20, ..., PH0 = 0x70.
 
 ---
 
-## 1. SoC, boot and memory
+## 1. СнК, загрузка и память
 
-| Item | SMK-37 | FM-1 | Status |
+| Параметр | SMK-37 | FM-1 | Статус |
 |---|---|---|---|
-| SoC | JieLi AC791N (WL82 family), pi32v2 core | same | analysis |
-| External flash | 1 MiB SPI NOR, JEDEC id **0xEB6014** on the tested unit | 1 MiB, 0x856014 | **verified** |
-| Second-stage bootloader (SPL) and boot config | byte-identical to the FM-1 (the whole flash range 0x0000-0x3FFF matches) | | analysis |
-| Chip key | 0x980F | 0x980F | analysis |
-| App image execution address | **0x02000120** (XIP); app.bin starts at flash 0x4120 | same | **verified** |
-| Update loader (`ota.bin`) | byte-identical to the FM-1's | | analysis |
-| Clock tree, reset config | identical boot config, so the same crystal and PLL setup | | analysis |
+| СнК | JieLi AC791N (семейство WL82), ядро pi32v2 | то же | анализ |
+| Внешняя флеш-память | 1 МиБ SPI NOR, JEDEC-id **0xEB6014** на протестированном экземпляре | 1 МиБ, 0x856014 | **проверено** |
+| Загрузчик второй ступени (SPL) и конфигурация загрузки | побайтово идентичны FM-1 (весь диапазон 0x0000-0x3FFF совпадает) | | анализ |
+| Ключ чипа | 0x980F | 0x980F | анализ |
+| Адрес выполнения образа приложения | **0x02000120** (XIP); app.bin начинается с 0x4120 во флеш | то же | **проверено** |
+| Загрузчик обновлений (`ota.bin`) | побайтово идентичен FM-1 | | анализ |
+| Дерево тактовых частот, конфигурация сброса | идентичная конфигурация загрузки, значит те же кварц и настройки PLL | | анализ |
 
-The flash part differs from the FM-1's. Firmware that allow-lists the JEDEC id (Felucca and SLOOP refuse to
-write to an unknown part) must add **0xEB6014**. The driver only uses
-generic SPI NOR commands (`9F`, `05`/`35`, `06`, `20`, `02`, `0B`), so adding the id is enough. Until you do,
-the firmware runs without saving and the update loader refuses to write, which is safe. Other units may carry
-a different part: read the id during the flash backup (see
+Микросхема флеш отличается от установленной в FM-1. Прошивки, проверяющие JEDEC-id по белому списку (Felucca и SLOOP отказываются
+писать в неизвестный компонент), должны добавить **0xEB6014**. Драйвер использует только
+общие команды SPI NOR (`9F`, `05`/`35`, `06`, `20`, `02`, `0B`), поэтому добавления id достаточно. Пока этого не сделано,
+прошивка работает без сохранения, а загрузчик обновлений отказывается писать — это безопасно. Другие экземпляры могут нести
+другой компонент: считайте id при резервном копировании флеш (см.
 [02-update-and-recovery.md](02-update-and-recovery.md)).
 
-## 2. Flash map
+## 2. Карта флеш-памяти
 
-The 1 MiB map, as defined by the region table of the stock v016 package (status: analysis):
+Карта на 1 МиБ согласно таблице областей штатного пакета v016 (статус: анализ):
 
-| Flash range | Stock SMK-37 Pro v016 | FM-1 (stock v15) |
+| Диапазон флеш | Штатный SMK-37 Pro v016 | FM-1 (штатный v15) |
 |---|---|---|
-| `0x00000-0x03FFF` | header, SPL, boot config | same, identical bytes |
-| `0x04000-0x9CFFF` | app area (PRCT): app head at 0x4000, `app.bin` at 0x4120, then config blobs | `0x04000-0x92FFF` |
-| `0x9D000-0xBFFFF` | VM: key-value settings store | `0x93000-0xE8FFF` |
-| `0xC0000-0xC0FFF` | BTIF: Bluetooth pairing | `0xE9000` |
-| `0xC1000-0xC1FFF` | **USRTRIM: factory calibration** (SMK only) | none |
-| `0xC2000-0xEAFFF` | USRFLASH: user data, probably presets (SMK only) | none |
-| `0xEB000-0xF3FFF` | not listed in the region table | |
-| `0xF4000-0xFDFFF` | USR: stock resources | `0xEA000-0xFBFFF` |
-| `0xFE000-0xFEFFF` | not listed | (SLOOP keeps settings here on the FM-1) |
-| `0xFF000-0xFFFFF` | key_mac | same |
+| `0x00000-0x03FFF` | заголовок, SPL, конфигурация загрузки | то же, идентичные байты |
+| `0x04000-0x9CFFF` | область приложения (PRCT): заголовок на 0x4000, `app.bin` на 0x4120, далее служебные блоки | `0x04000-0x92FFF` |
+| `0x9D000-0xBFFFF` | VM: хранилище настроек «ключ-значение» | `0x93000-0xE8FFF` |
+| `0xC0000-0xC0FFF` | BTIF: сопряжение Bluetooth | `0xE9000` |
+| `0xC1000-0xC1FFF` | **USRTRIM: заводская калибровка** (только SMK) | отсутствует |
+| `0xC2000-0xEAFFF` | USRFLASH: пользовательские данные, вероятно пресеты (только SMK) | отсутствует |
+| `0xEB000-0xF3FFF` | не указана в таблице областей | |
+| `0xF4000-0xFDFFF` | USR: штатные ресурсы | `0xEA000-0xFBFFF` |
+| `0xFE000-0xFEFFF` | не указана | (SLOOP хранит здесь настройки на FM-1) |
+| `0xFF000-0xFFFFF` | key_mac | то же |
 
-Two details trip up existing tools:
+Две детали сбивают существующие инструменты с толку:
 
-- The region table entries for VM, BTIF, USRTRIM, USRFLASH and USR hold **absolute** flash offsets. They are
-  not relative to the app area at 0x4000. Some unpackers add 0x4000 and report the regions 16 KiB too high.
-- Region flags as stored in the stock table: VM `12 81`, PRCT `92 82`, BTIF `92 82`, USRTRIM `92 81`,
-  USRFLASH `92 81`, USR `92 81` (index 1). A package built for the SMK should carry the same table, so that the
-  official loader treats it the same way.
+- Записи таблицы областей для VM, BTIF, USRTRIM, USRFLASH и USR содержат **абсолютные** смещения во флеш.
+  Они не относительны к области приложения на 0x4000. Некоторые распаковщики прибавляют 0x4000 и показывают области на 16 КиБ выше.
+- Флаги областей в штатной таблице: VM `12 81`, PRCT `92 82`, BTIF `92 82`, USRTRIM `92 81`,
+  USRFLASH `92 81`, USR `92 81` (индекс 1). Пакет, собранный для SMK, должен нести ту же таблицу, чтобы
+  официальный загрузчик обрабатывал его одинаково.
 
-### 2.1 The calibration record (USRTRIM, 0xC1000)
+### 2.1 Запись калибровки (USRTRIM, 0xC1000)
 
-| Offset | Size | Contents | Stock default |
+| Смещение | Размер | Содержимое | Штатное значение по умолчанию |
 |---|---|---|---|
-| +0x000 | 8 | header (not set by the defaults path) | |
-| +0x008 | 16 x 5 x u16 | pad curves: 5 rising points each | 50, 550, 720, 850, 950 |
-| +0x0A8 | 37 x 5 x u16 | key velocity curves: 5 rising points each | 5, 640, 800, 920, 980 |
-| +0x21A | 5 x u16 | one extra curve (used for the pedal) | 20, 850, 920, 980, 1010 |
-| +0x224 | 8 | marker `trimdat\0` | |
+| +0x000 | 8 | заголовок (не заполняется путём значений по умолчанию) | |
+| +0x008 | 16 x 5 x u16 | кривые пэдов: по 5 возрастающих точек | 50, 550, 720, 850, 950 |
+| +0x0A8 | 37 x 5 x u16 | кривые скорости клавиш: по 5 возрастающих точек | 5, 640, 800, 920, 980 |
+| +0x21A | 5 x u16 | одна дополнительная кривая (для педали) | 20, 850, 920, 980, 1010 |
+| +0x224 | 8 | маркер `trimdat\0` | |
 
-The stock firmware accepts the record only if the marker matches and the curves rise strictly. Otherwise it
-writes the defaults back to flash. A port should **read** this record (it holds the per-key tuning of your unit),
-check it the same way, and fall back to the defaults in RAM, **without ever writing the sector**. A quick self
-test at boot is to read 8 bytes at flash 0xC1224 and expect `trimdat\0`. Status: layout from analysis. The
-reference port reads the record this way, and key velocity with the factory curves works on the tested unit.
+Штатная прошивка принимает запись только если маркер совпадает и кривые строго возрастают. Иначе она
+записывает значения по умолчанию обратно во флеш. Порт должен **читать** эту запись (в ней индивидуальная подстройка клавиш вашего экземпляра),
+проверять её тем же способом и использовать значения по умолчанию в ОЗУ, **никогда не записывая сектор**. Быстрая самопроверка
+при загрузке: прочитать 8 байт по адресу флеш 0xC1224 и ожидать `trimdat\0`. Статус: раскладка получена анализом.
+Эталонный порт читает запись именно так, и скорость клавиш с заводскими кривыми работает на протестированном экземпляре.
 
-### 2.2 Data map used by the reference port
+### 2.2 Карта данных, используемая эталонным портом
 
-| Range | Use |
+| Диапазон | Назначение |
 |---|---|
-| `0x04000-0x9CFFF` | app area. Only the update loader writes here. App slot (XIP length) `0x97400`, the size of the stock app. |
-| `0x9D000-0xBAFFF` | the firmware's own store: projects, presets, autosave, settings |
-| `0xBB000-0xBFFFF` | update staging (the custom loader and its update record) |
-| `0xC2000-0xE9FFF` | user sample slots (2 x 80 KiB). This overwrites the stock USRFLASH data. |
-| everything else | not written |
+| `0x04000-0x9CFFF` | область приложения. Сюда пишет только загрузчик обновлений. Слот приложения (длина XIP) `0x97400` — размер штатного приложения. |
+| `0x9D000-0xBAFFF` | собственное хранилище прошивки: проекты, пресеты, автосохранение, настройки |
+| `0xBB000-0xBFFFF` | staging обновлений (пользовательский загрузчик и его запись обновления) |
+| `0xC2000-0xE9FFF` | слоты пользовательских сэмплов (2 x 80 КиБ). Перезаписывает штатные данные USRFLASH. |
+| всё остальное | не записывается |
 
-The update loader may only write `0x04000-0x9CFFF` (app) and `0x9D000-0xBFFFF` (its records, which must stay in
-VM so that cleaning them up can never reach BTIF or USRTRIM).
+Загрузчик обновлений может писать только в `0x04000-0x9CFFF` (приложение) и `0x9D000-0xBFFFF` (свои записи,
+которые должны оставаться внутри VM, чтобы их очистка никогда не затронула BTIF или USRTRIM).
 
-## 3. Display
+## 3. Дисплей
 
-| Item | SMK-37 | FM-1 | Status |
+| Параметр | SMK-37 | FM-1 | Статус |
 |---|---|---|---|
-| Controller | ST7789V, IPS panel | ST7789-class | **verified** |
-| Resolution | 240 x 240, no window offset | 240 x 240 (FM-1 init sets a row offset) | **verified** |
-| Bus | **SPI1 group A** (`IOMAP_CON1` bit 4 = 0): **CLK PB6, MOSI PB7** | SPI1 group B (bit 4 = 1): CLK PC9, MOSI PC10 | **verified** |
-| Chip select | **PC8**, active low | PC7 | **verified** |
-| Data/command | **PB5** (low = command) | PC8 | **verified** |
-| Reset | none (the panel relies on power-on reset) | | analysis |
-| Backlight | no control found. It is on whenever the unit is on. | PA2, active low | verified (on without any pin driven) |
-| SPI1 registers | `0x11D00` CON, `+4` BAUD, `+8` BUF, `+0xC` DMA address, `+0x10` DMA count | same | |
-| SPI1 setup | CON `0x4021`, BAUD 4 (about 12 MHz) | same | **verified** |
-| Pixel format | RGB565, high byte first, MADCTL 0x00, COLMOD 0x05 (16 bpp), inversion on (INVON) | same idea | **verified** |
+| Контроллер | ST7789V, IPS-панель | класса ST7789 | **проверено** |
+| Разрешение | 240 x 240, без смещения окна | 240 x 240 (инициализация FM-1 задаёт смещение строк) | **проверено** |
+| Шина | **группа A SPI1** (`IOMAP_CON1`, бит 4 = 0): **CLK PB6, MOSI PB7** | группа B SPI1 (бит 4 = 1): CLK PC9, MOSI PC10 | **проверено** |
+| Выбор кристалла | **PC8**, активный низкий | PC7 | **проверено** |
+| Данные/команда | **PB5** (низкий = команда) | PC8 | **проверено** |
+| Сброс | отсутствует (панель полагается на сброс подачей питания) | | анализ |
+| Подсветка | управление не найдено. Она включена всегда, когда устройство включено. | PA2, активный низкий | проверено (горит без управления каким-либо выводом) |
+| Регистры SPI1 | `0x11D00` CON, `+4` BAUD, `+8` BUF, `+0xC` адрес DMA, `+0x10` счётчик DMA | те же | |
+| Настройка SPI1 | CON `0x4021`, BAUD 4 (около 12 МГц) | то же | **проверено** |
+| Формат пикселя | RGB565, старший байт первым, MADCTL 0x00, COLMOD 0x05 (16 бит/пикс), инверсия включена (INVON) | та же идея | **проверено** |
 
-The stock panel setup, as register writes (the port uses the same sequence):
+Штатная инициализация панели в виде записи регистров (порт использует ту же последовательность):
 
-| Step | Command | Data |
+| Шаг | Команда | Данные |
 |---|---|---|
-| 1 | wait 100 ms after SPI setup | |
-| 2 | `11` SLPOUT, then wait 120 ms | |
+| 1 | подождать 100 мс после настройки SPI | |
+| 2 | `11` SLPOUT, затем ждать 120 мс | |
 | 3 | `36` MADCTL | `00` |
 | 4 | `3A` COLMOD | `05` |
 | 5 | `B2` PORCTRL | `0C 0C 00 33 33` |
@@ -123,81 +123,80 @@ The stock panel setup, as register writes (the port uses the same sequence):
 | 10 | `C4` VDVS | `20` |
 | 11 | `C6` FRCTRL2 | `0F` |
 | 12 | `D0` PWCTRL1 | `A4 A1` |
-| 13 | `E0` positive gamma | `D0 08 0E 09 09 05 31 33 48 17 14 15 31 34` |
-| 14 | `E1` negative gamma | same 14 bytes |
+| 13 | `E0` положительная гамма | `D0 08 0E 09 09 05 31 33 48 17 14 15 31 34` |
+| 14 | `E1` отрицательная гамма | те же 14 байт |
 | 15 | `21` INVON | |
-| 16 | clear the full 240 x 240 window to black, then `29` DISPON | |
+| 16 | очистить всё окно 240 x 240 в чёрный, затем `29` DISPON | |
 
-An FM-1 port keeps its LCD driver code (command, data, window, fill). Only the pins, the SPI1 group bit and the
-init table change. An ST7789 minimal init also lights the panel, but the table above is what the panel was tuned
-with.
+Порт с FM-1 сохраняет свой код драйвера ЖК (команда, данные, окно, заливка). Меняются только выводы, бит группы SPI1 и таблица
+инициализации. Минимальная инициализация ST7789 тоже подсветит панель, но приведённая выше таблица — та, с которой панель была настроена.
 
-## 4. RGB pad LEDs
+## 4. RGB-светодиоды пэдов
 
-| Item | SMK-37 | Status |
+| Параметр | SMK-37 | Статус |
 |---|---|---|
-| LEDs | 16 WS2812-class RGB LEDs under the pads, one data line | **verified** |
-| Data pin | **PC10** = SPI1 MOSI in **group B** (`IOMAP_CON1` bit 4 = 1). PC9 (group B clock) is left alone and stays an analog input. | **verified** |
-| Encoding | one SPI byte per LED bit, MSB first: `0xF0` = 1, `0xC0` = 0 | **verified** |
-| Bit clock | SPI1 BAUD 8 (about 6.67 MHz, 1.2 us per LED bit) | **verified** |
-| Frame | 36 zero bytes (reset) followed by 16 x 24 bytes: 420 bytes, about 0.5 ms by DMA | **verified** |
-| Colour order | **GRB** | **verified** |
+| Светодиоды | 16 RGB-светодиодов класса WS2812 под пэдами, одна линия данных | **проверено** |
+| Вывод данных | **PC10** = MOSI SPI1 в **группе B** (`IOMAP_CON1`, бит 4 = 1). PC9 (тактовый группы B) не трогается и остаётся аналоговым входом. | **проверено** |
+| Кодирование | один байт SPI на бит светодиода, MSB первым: `0xF0` = 1, `0xC0` = 0 | **проверено** |
+| Тактовая бита | BAUD SPI1 = 8 (около 6,67 МГц, 1,2 мкс на бит светодиода) | **проверено** |
+| Кадр | 36 нулевых байт (сброс) и далее 16 x 24 байта: 420 байт, около 0,5 мс по DMA | **проверено** |
+| Порядок цветов | **GRB** | **проверено** |
 
-Chain order (hardware pad index to position in the chain):
+Порядок цепочки (аппаратный индекс пэда -> позиция в цепочке):
 
-| Pad | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 |
+| Пэд | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| Chain slot | 0 | 15 | 14 | 13 | 12 | 11 | 10 | 9 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
+| Слот цепочки | 0 | 15 | 14 | 13 | 12 | 11 | 10 | 9 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
 
-The LEDs and the display share SPI1, on two different pin groups. The stock firmware squeezes the LED frame into
-a gap in its LCD transfer. A port can do it more simply:
+Светодиоды и дисплей разделяют SPI1 на двух разных группами выводов. Штатная прошивка втискивает кадр светодиодов в
+паузу своей передачи на ЖК. Порт может сделать это проще:
 
-1. Wait until the LCD transfer has finished and the LCD chip select (PC8) is high.
-2. Set `IOMAP_CON1` bit 4 and BAUD 8, then DMA the 420-byte frame from RAM.
-3. Wait for the DMA to finish, then clear bit 4 and restore the LCD baud rate.
+1. Дождаться завершения передачи на ЖК и высокого уровня на CS дисплея (PC8).
+2. Установить бит 4 `IOMAP_CON1` и BAUD 8, затем отправить DMA-кадр из 420 байт из ОЗУ.
+3. Дождаться окончания DMA, затем сбросить бит 4 и восстановить baud-рейт ЖК.
 
-Never switch the pin group while a DMA is running. Flush the LEDs from the main loop, for example once per UI
-frame when a colour has changed. Keep PC10 as a low output between frames, so the latch time is always met.
+Никогда не переключайте группу выводов во время работы DMA. Обновляйте светодиоды из главного цикла, например раз за кадр
+UI при изменении цвета. Держите PC10 низким выходом между кадрами, чтобы время фиксации всегда соблюдалось.
 
-## 5. Key matrix: keys, buttons, encoders
+## 5. Клавиатурная матрица: клавиши, кнопки, энкодеры
 
-### 5.1 Shift registers and return lines
+### 5.1 Сдвиговые регистры и линии возврата
 
-| Signal | SMK-37 | FM-1 | Status |
+| Сигнал | SMK-37 | FM-1 | Статус |
 |---|---|---|---|
-| Column drivers | **4 x 74HC595** (32 bits), shifted by **SPI2 group C**: CLK PA3, MOSI PA4 (`IOMAP_CON1` bits 17..16 = `10`) | 2 x 74HC595, bit-banged on PA3/PA4 | **verified** |
-| Latch | **PA1**, pulse high after each shift | PA1 | **verified** |
-| Output enable | PA0, held low | | analysis |
-| Return lines (rows 0..7) | **PA2, PA5, PA6, PA7, PA9, PH6, PH8, PH9**, inputs with pull-ups, low = contact closed | PA0, PA5..PA8, PB7 | **verified** |
-| SPI2 registers | `0x11E00` CON, `+4` BAUD, `+0xC` DMA address, `+0x10` DMA count. Setup: CON `0x4020` (master, transmit), BAUD 5, then enable bit 0 | | **verified** |
+| Драйверы столбцов | **4 x 74HC595** (32 бита), сдвиг через **SPI2 группа C**: CLK PA3, MOSI PA4 (`IOMAP_CON1`, биты 17..16 = `10`) | 2 x 74HC595, «бит-бэнг» на PA3/PA4 | **проверено** |
+| Фиксация (latch) | **PA1**, импульс в высокий уровень после каждого сдвига | PA1 | **проверено** |
+| Разрешение выхода | PA0, удерживается в низком уровне | | анализ |
+| Линии возврата (строки 0..7) | **PA2, PA5, PA6, PA7, PA9, PH6, PH8, PH9**, входы с подтяжкой, низкий = контакт замкнут | PA0, PA5..PA8, PB7 | **проверено** |
+| Регистры SPI2 | `0x11E00` CON, `+4` BAUD, `+0xC` адрес DMA, `+0x10` счётчик DMA. Настройка: CON `0x4020` (мастер, передача), BAUD 5, затем включить бит 0 | | **проверено** |
 
-PH6, PH8, PH9 and PA9 are LED or MIDI pins on the FM-1. On the SMK-37 they are matrix inputs. **Driving them
-as FM-1 outputs shorts them against the matrix. Remove the FM-1 LED and MIDI-IN code paths for these pins.**
+PH6, PH8, PH9 и PA9 на FM-1 — это светодиоды или MIDI-выводы. На SMK-37 они являются входами матрицы.
+**Управление ими как выходами FM-1 замыкает их против матрицы. Уберите кодовые пути светодиодов и MIDI-IN FM-1 для этих выводов.**
 
-The 32-bit word goes out as 4 bytes by DMA (little-endian in memory):
+32-битное слово outgoing передаётся четырьмя байтами по DMA (младший байт первым в памяти):
 
-| Bits | Use |
+| Биты | Назначение |
 |---|---|
-| 31..24 | column 0..7 select, active low, one-hot |
-| 23..16 | column 8..15 select, active low, one-hot |
-| 15..0 | button LED lines (active low), **except bits 5..3**, which carry the analog mux address |
+| 31..24 | выбор столбца 0..7, активный низкий, «термометр» one-hot |
+| 23..16 | выбор столбца 8..15, активный низкий, one-hot |
+| 15..0 | линии светодиодов кнопок (активный низкий), **кроме битов 5..3**, в которых передаётся адрес аналогового мультиплексора |
 
-So the column word for column `c` is `~(0x01000000 << c)` for c < 8 and `~(0x00010000 << (c - 8))` for c >= 8.
-The LED word and the mux address are combined into the low half with AND masks.
+Итак, слово столбца для столбца `c`: `~(0x01000000 << c)` при c < 8 и `~(0x00010000 << (c - 8))` при c >= 8.
+Слово светодиодов и адрес мультиплексора объединяются в младшую половину масками AND.
 
-The matrix has **16 columns x 8 rows**. Rows 0..4 carry the keybed, rows 5..6 the buttons and row 7 the
-encoders. A position is written below as a code `col << 4 | row` (hex: high digit = column, low digit = row).
+Матрица имеет **16 столбцов x 8 строк**. Строки 0..4 несут клавиатуру, строки 5..6 — кнопки, строка 7 — энкодеры.
+Позиция записывается кодом `col << 4 | row` (hex: старшая цифра = столбец, младшая = строка).
 
-**Scan order matters.** Each step: read the rows (they belong to the column latched one step earlier), pulse
-the latch for the word shifted during the last step, then start the DMA of the next column's word. With this
-order, the codes in the tables below apply unchanged. With a different order they shift by one column. The
-reference port runs one step per tick of a 10 kHz timer, so a full frame (16 columns) takes 1.6 ms. The stock
-firmware runs the scan from the SPI2 interrupt and is faster.
+**Порядок опроса важен.** Каждый шаг: прочитать строки (они относятся к столбцу, зафиксированному шагом ранее),
+импульснуть latch словом, сдвинутым на последнем шаге, затем запустить DMA слова следующего столбца. При этом
+порядке коды из таблиц ниже применимы без изменений. При другом порядке они сдвинутся на столбец.
+Эталонный порт выполняет один шаг на тик таймера 10 кГц, поэтому полный кадр (16 столбцов) занимает 1,6 мс. Штатная
+прошивка ведёт опрос из прерывания SPI2 и работает быстрее.
 
-### 5.2 Keybed: 37 keys with two contacts each
+### 5.2 Клавиатура: 37 клавиш с двумя контактами каждая
 
-Each key has a first contact (closes early in the stroke) and a second contact (closes near the bottom).
-Key `k = 0` is the lowest key (C3), `k = 36` the highest (C6) (verified in use).
+Каждая клавиша имеет первый контакт (замыкается рано при ходе) и второй контакт (замыкается у основания).
+Клавиша `k = 0` — самая низкая (C3), `k = 36` — самая высокая (C6) (проверено в использовании).
 
 | k | c1 | c2 | k | c1 | c2 | k | c1 | c2 | k | c1 | c2 |
 |---|---|---|---|---|---|---|---|---|---|---|---|
@@ -212,27 +211,27 @@ Key `k = 0` is the lowest key (C3), `k = 36` the highest (C6) (verified in use).
 | 8 | 90 | a2 | 18 | 41 | 63 | 28 | e1 | 13 | | | |
 | 9 | a0 | 82 | 19 | 51 | 73 | 29 | f1 | 14 | | | |
 
-**Velocity.** The stock algorithm, which the port reuses:
+**Скорость нажатия (velocity).** Штатный алгоритм, который порт повторяет:
 
-1. When contact 1 closes, note the time.
-2. When contact 2 closes (debounced), compute `T = 10 + elapsed time in 0.1 ms units`. If both contacts close in
-   the same scan, T = 10.
-3. `x = 1023 - T` (or 1 if T > 1022). Faster strokes give larger x.
-4. Look x up in the key's 5-point curve `t[0..4]` from the calibration record:
+1. При замыкании контакта 1 запомнить время.
+2. При замыкании контакта 2 (после дребезга) вычислить `T = 10 + прошедшее время в единицах по 0,1 мс`. Если оба контакта замкнулись в
+   одном скане, T = 10.
+3. `x = 1023 - T` (или 1, если T > 1022). Быстрый удар даёт большое x.
+4. Найти x в 5-точечной кривой `t[0..4]` клавиши из записи калибровки:
    - x <= t[0]: velocity 1
    - x > t[4]: velocity 1023
-   - otherwise, for the segment i where `t[i-1] < x <= t[i]`:
+   - иначе для сегмента i, где `t[i-1] < x <= t[i]`:
      `v = (i - 1) * 256 + (x - t[i-1]) * 256 / (t[i] - t[i-1])`
-5. Send note-on with MIDI velocity `max(1, v >> 3)`.
-6. Note-off when contact 1 opens (after a few stable scans). Releasing only contact 2 keeps the note on.
+5. Отправить note-on с MIDI velocity `max(1, v >> 3)`.
+6. Note-off при размыкании контакта 1 (после нескольких устойчивых сканов). Отпускание только контакта 2 оставляет ноту.
 
-With the default curve, T up to about 4 ms gives full velocity. Strokes slower than about 100 ms give the
-minimum. The port's 1.6 ms frame resolves fast strokes coarsely. If hard playing all reads as maximum, scan the
-key rows more often.
+С кривой по умолчанию T до примерно 4 мс даёт максимальную скорость. Удары медленнее примерно 100 мс дают
+минимум. Кадр порта 1,6 мс разрешает быстрые удары грубо. Если сильная игра вся читается как максимум, сканируйте
+строки клавиш чаще.
 
-### 5.3 Buttons: 18 positions on rows 5 and 6
+### 5.3 Кнопки: 18 позиций на строках 5 и 6
 
-| id | Code | Printed name | id | Code | Printed name |
+| id | Код | Надпись на корпусе | id | Код | Надпись на корпусе |
 |---|---|---|---|---|---|
 | 0 | 26 | KNOB BANK | 9 | 45 | CHORD |
 | 1 | 76 | FADER BANK | 10 | 15 | GLOBE |
@@ -244,11 +243,11 @@ key rows more often.
 | 7 | 65 | NOTE REPEAT | 16 | 16 | SEQ PLAY |
 | 8 | 25 | SCALE | 17 | 46 | SEQ REC |
 
-Status: **verified** (all 18 names checked on a unit). Debounce of 2 to 4 scan frames works well.
+Статус: **проверено** (все 18 названий проверены на экземпляре). Дребезг в 2..4 кадра скана работает хорошо.
 
-### 5.4 Encoders K1..K8: quadrature on row 7
+### 5.4 Энкодеры K1..K8: квадратура на строке 7
 
-| Encoder | A | B |
+| Энкодер | A | B |
 |---|---|---|
 | K1 | 97 | a7 |
 | K2 | 37 | 47 |
@@ -259,22 +258,22 @@ Status: **verified** (all 18 names checked on a unit). Debounce of 2 to 4 scan f
 | K7 | d7 | e7 |
 | K8 | f7 | 07 |
 
-Status: **verified** (K1..K8 in this order).
+Статус: **проверено** (K1..K8 в таком порядке).
 
-Decoder (stock method): build the 2-bit state `A | B << 1` each frame. Accept a new state only when it has
-been stable for two frames. Keep the last three states in a 6-bit history. Count +1 or -1 only when the last two
-transitions went the same way:
+Декодер (штатный метод): строить 2-битное состояние `A | B << 1` каждый кадр. Принимать новое состояние только когда оно
+было устойчиво два кадра. Хранить последние три состояния в 6-битной истории. Считать +1 или -1 только когда последние два
+перехода шли в одну сторону:
 
-- one direction: history `0x07, 0x1E, 0x21, 0x38`
-- other direction: history `0x0B, 0x12, 0x2D, 0x34`
+- одно направление: история `0x07, 0x1E, 0x21, 0x38`
+- другое направление: история `0x0B, 0x12, 0x2D, 0x34`
 
-This yields 4 counts per quadrature cycle. **One detent is a whole cycle**, so divide by 4 for one UI step per
-click. (The stock divisor of 2 gives two steps per click.) Use the reference port's sign convention. If a knob
-runs backwards on your unit, flip the sign.
+Это даёт 4 счёта за период квадратуры. **Одна фиксация (щелчок) — целый период**, поэтому делите на 4 для одного шага UI
+на щелчок. (Штатный делитель 2 даёт два шага на щелчок.) Используйте знаковую конвенцию эталонного порта. Если ручка
+крутится в обратную сторону на вашем экземпляре — переверните знак.
 
-### 5.5 Button LEDs: 19 single-colour LEDs on two commons
+### 5.5 Светодиоды кнопок: 19 одноцветных светодиодов на двух общих шинах
 
-| LED | = button | Group, bit | LED | = button | Group, bit |
+| Светодиод | = кнопка | Группа, бит | Светодиод | = кнопка | Группа, бит |
 |---|---|---|---|---|---|
 | 0 | KNOB BANK | 0, 12 | 10 | GLOBE | 0, 11 |
 | 1 | FADER BANK | 1, 2 | 11 | BT | 0, 10 |
@@ -284,173 +283,173 @@ runs backwards on your unit, flip the sign.
 | 5 | OCTAVE+ | 1, 13 | 15 | SEQ | 1, 10 |
 | 6 | ARP | 0, 2 | 16 | SEQ PLAY | 1, 12 |
 | 7 | NOTE REPEAT | 0, 1 | 17 | SEQ REC | 1, 14 |
-| 8 | SCALE | 0, 9 | 18 | (spare) | 1, 11 |
+| 8 | SCALE | 0, 9 | 18 | (запас) | 1, 11 |
 | 9 | CHORD | 0, 8 | | | |
 
-- The LED lines are the low 16 bits of the 595 word ("bit" above), **active low**.
-- The two group commons sit on the second USB PHY's pads used as GPIO: register `0x16A0C`, **bit 17 = group 0,
-  bit 18 = group 1**, low = group on. When writing the register, keep its GPIO-mode bits set (`| 0x1000F`).
-- Multiplex the groups: one scan frame shows group 0 with its LED bits, the next frame group 1. Switch the
-  common at the start of a frame (column 0).
+- Линии светодиодов — младшие 16 бит слова 595 («бит» выше), **активный низкий**.
+- Две общие шины групп сидят на площадках второго USB PHY, используемых как GPIO: регистр `0x16A0C`,
+  **бит 17 = группа 0, бит 18 = группа 1**, низкий = группа включена. При записи регистра сохраняйте установленные биты GPIO-режима (`| 0x1000F`).
+- Мультиплексируйте группы: один кадр скана показывает группу 0 с её битами светодиодов, следующий кадр — группу 1.
+  Переключайте общую шину в начале кадра (столбец 0).
 
-Status: **verified** for the LEDs the reference port drives, analysis for the rest of the table.
+Статус: **проверено** для светодиодов, которые управляет эталонный порт; анализ — для остальной части таблицы.
 
-## 6. Analog inputs
+## 6. Аналоговые входы
 
-### 6.1 ADC and muxes
+### 6.1 АЦП и мультиплексоры
 
-| Item | SMK-37 | FM-1 | Status |
+| Параметр | SMK-37 | FM-1 | Статус |
 |---|---|---|---|
-| ADC channels | **ch1 = PA8** (mux A), **ch8 = PC9** (mux B), **ch2 = PA10** (mux C) | ch3 PB1 (battery), ch4 PB6 (MASTER pot) | **verified** |
-| Muxes | 3 x 8:1, all three share one 3-bit address = **bits 5..3 of the 595 word** | none | **verified** |
-| Pin mode | PA8, PA10, PC9: analog (input buffer off, no pulls) | | **verified** |
-| ADC registers | `0x13100` CON, `0x13104` result (10 bit) | same | |
-| ADC timing | **CON = `0x400D | ch << 8`, then set bit 4 (enable), then bit 6 (start)**. Done flag: bit 7. A conversion takes about 40 us. | FM-1: `0xF04E`/`0xF06E`, polled | **verified** |
+| Каналы АЦП | **ch1 = PA8** (мультиплексор A), **ch8 = PC9** (mux B), **ch2 = PA10** (mux C) | ch3 PB1 (батарея), ch4 PB6 (потенциометр MASTER) | **проверено** |
+| Мультиплексоры | 3 x 8:1, все три разделяют один 3-битный адрес = **биты 5..3 слова 595** | отсутствуют | **проверено** |
+| Режим выводов | PA8, PA10, PC9: аналоговый (входной буфер выключен, без подтяжек) | | **проверено** |
+| Регистры АЦП | `0x13100` CON, `0x13104` результат (10 бит) | те же | |
+| Тайминг АЦП | **CON = `0x400D | ch << 8`, затем установить бит 4 (разрешение), затем бит 6 (старт)**. Флаг готовности: бит 7. Преобразование занимает около 40 мкс. | FM-1: `0xF04E`/`0xF06E`, опрос | **проверено** |
 
-**Use the SMK timing.** The FM-1's ADC setting (long start delay, slow divider) takes about 200 us per
-conversion. At one conversion per 100 us tick it never finishes, and the pads and faders read nothing. This
-was one of the bring-up bugs.
+**Используйте тайминг SMK.** Настройка АЦП FM-1 (длинная задержка старта, медленный делитель) даёт около 200 мкс на
+преобразование. При одном преобразовании на тик 100 мкс оно никогда не завершается, и пэды с фейдерами ничего не считывают. Это
+был один из багов начальной отладки.
 
-The mux address you set is shifted out with the next 595 word, so it takes effect one step later. The reference
-port cycles through 8 addresses x 3 channels (24 steps, 2.4 ms) and converts one channel per tick. Before each
-conversion it also clears bit 14 of register `0x11900`, as the stock firmware does.
+Установленный адрес мультиплексора выдвигается наружу вместе со следующим словом 595, поэтому вступает в силу на шаг позже. Эталонный
+порт циклически проходит 8 адресов x 3 канала (24 шага, 2,4 мс) и выполняет одно преобразование на канал за тик. Перед каждым
+преобразованием он также сбрасывает бит 14 регистра `0x11900`, как делает штатная прошивка.
 
-### 6.2 What sits on each mux address
+### 6.2 Что сидит на каждом адресе мультиплексора
 
-| Address | Mux A (ch1, PA8) | Mux B (ch8, PC9) | Mux C (ch2, PA10) |
+| Адрес | Mux A (ch1, PA8) | Mux B (ch8, PC9) | Mux C (ch2, PA10) |
 |---|---|---|---|
-| 0 | pad 1 | pad 9 | fader index 1 |
-| 1 | pad 2 | pad 10 | fader index 2 |
-| 2 | pad 3 | pad 11 | fader index 3 |
-| 3 | pad 0 | pad 8 | fader index 0 |
-| 4 | pad 4 | pad 12 | **pitch wheel** |
-| 5 | pad 7 | pad 15 | **mod wheel** |
-| 6 | pad 5 | pad 13 | pedal jack |
-| 7 | pad 6 | pad 14 | battery |
+| 0 | пэд 1 | пэд 9 | фейдер индекс 1 |
+| 1 | пэд 2 | пэд 10 | фейдер индекс 2 |
+| 2 | пэд 3 | пэд 11 | фейдер индекс 3 |
+| 3 | пэд 0 | пэд 8 | фейдер индекс 0 |
+| 4 | пэд 4 | пэд 12 | **колесо питча** |
+| 5 | пэд 7 | пэд 15 | **колесо модуляции** |
+| 6 | пэд 5 | пэд 13 | джек педали |
+| 7 | пэд 6 | пэд 14 | батарея |
 
-### 6.3 Pads
+### 6.3 Пэды
 
-16 force-sensitive pads with velocity and pressure.
+16 чувствительных к силе пэдов с velocity и давлением.
 
-- **Physical layout: the top row is hardware pads 0..7 (mux A), the bottom row is pads 8..15 (mux B)**, both
-  left to right. Status: **verified** with `padtest` on a unit (2026-10-10). Earlier notes, console texts and
-  comments in some layers say the opposite; they are wrong.
-- One number for each pad: the hardware pad index is the same for the analog reading (the muxes) and for the LED
-  (through the chain-slot table in section 4). Count in this index everywhere and convert to reading order in one
-  place (the HAL's `SMK_PAD_OF_WHITE` / `SMK_WHITE_OF_PAD`).
+- **Физическая раскладка: верхний ряд — аппаратные пэды 0..7 (mux A), нижний ряд — пэды 8..15 (mux B)**, оба
+  слева направо. Статус: **проверено** с помощью `padtest` на экземпляре (2026-10-10). Более ранние заметки, тексты консоли и
+  комментарии в некоторых слоях говорят об обратном; они ошибочны.
+- Одно число для каждого пэда: аппаратный индекс пэда одинаков и для аналогового отсчёта (мультиплексоры), и для светодиода
+  (через таблицу слотов цепочки в разделе 4). Везде считайте этим индексом и преобразуйте к порядку чтения в одном
+  месте (`SMK_PAD_OF_WHITE` / `SMK_WHITE_OF_PAD` в HAL).
 
-| Position | top 1 | top 2 | top 3 | top 4 | top 5 | top 6 | top 7 | top 8 | bottom 1 | bottom 2 | bottom 3 | bottom 4 | bottom 5 | bottom 6 | bottom 7 | bottom 8 |
+| Позиция | верх 1 | верх 2 | верх 3 | верх 4 | верх 5 | верх 6 | верх 7 | верх 8 | низ 1 | низ 2 | низ 3 | низ 4 | низ 5 | низ 6 | низ 7 | низ 8 |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| Reading order (kit) | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 |
-| Hardware pad (ADC and LED) | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 |
-| Mux | A | A | A | A | A | A | A | A | B | B | B | B | B | B | B | B |
-| LED chain slot | 0 | 15 | 14 | 13 | 12 | 11 | 10 | 9 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
-- Each pad has a slowly tracking baseline (start at 100; step down by 1 when the reading is below it; step up by
-  2 while below the pad curve's first point).
-- The reference port: a hit starts at baseline + 24. The peak of the next 3 samples goes through the pad's
-  5-point curve from the calibration record (same lookup as the keys) to give the velocity. Release below
-  baseline + 12 for two samples. Thresholds are tunable by feel.
-- Pressure while held (stock formula): raw <= 512 gives `raw >> 4`; above that `min(127, (raw - 512) / 4 + 32)`.
+| Порядок чтения (кит) | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 |
+| Аппаратный пэд (АЦП и светодиод) | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 |
+| Мультиплексор | A | A | A | A | A | A | A | A | B | B | B | B | B | B | B | B |
+| Слот LED-цепочки | 0 | 15 | 14 | 13 | 12 | 11 | 10 | 9 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
+- У каждого пэда есть медленно отслеживаемая базовая линия (старт на 100; шаг вниз на 1, когда отсчёт ниже неё; шаг вверх на
+  2, пока ниже первой точки кривой пэда).
+- Эталонный порт: удар начинается на baseline + 24. Пик следующих 3 отсчётов проходит через 5-точечную кривую пэда
+  из записи калибровки (тот же поиск, что у клавиш), давая velocity. Отпускание ниже baseline + 12 в течение двух отсчётов.
+  Пороги подстраиваются на ощупь.
+- Давление при удержании (штатная формула): raw <= 512 даёт `raw >> 4`; выше — `min(127, (raw - 512) / 4 + 32)`.
 
-### 6.4 Faders
+### 6.4 Фейдеры
 
-- Four faders on mux C addresses 0..3 (index mapping in the table above). The reference port uses index 0..3 as
-  FADER 1..4 (verified in use).
-- Full scale reads **1023** (verified).
-- Filter: a median of 3 against single-sample spikes, then a slow IIR, then 0..127 with a +-1 dead band that
-  still reaches both ends. Use a **signed** filter. An unsigned IIR wraps when the fader moves down.
+- Четыре фейдера на адресах 0..3 mux C (отображение индексов в таблице выше). Эталонный порт использует индексы 0..3 как
+  FADER 1..4 (проверено в использовании).
+- Полный размах читается как **1023** (проверено).
+- Фильтр: медиана из 3 против одиночных выбросов, затем медленный ИИР-фильтр, затем 0..127 с мёртвой зоной +-1,
+  которая всё же достигает обоих концов. Используйте **знаковый** фильтр. Беззнаковый ИИР переполняется при движении фейдера вниз.
 
-### 6.5 Wheels
+### 6.5 Колёса
 
-| Wheel | Mux C address | Raw range on the tested unit | Status |
+| Колесо | Адрес mux C | Диапазон сырых значений на протестированном экземпляре | Статус |
 |---|---|---|---|
-| Pitch | 4 | rest about **535**, travel about **445..640** | **verified** |
-| Mod | 5 | about **474..629**, **up = lower raw value** | **verified** |
+| Pitch | 4 | покой около **535**, ход около **445..640** | **проверено** |
+| Mod | 5 | около **474..629**, **вверх = меньшее сырое значение** | **проверено** |
 
-The travel is short and differs between units. The reference port calibrates itself: it takes the pitch centre at
-power-on, lets the centre follow slow drift while the wheel rests, and widens each range to the extremes it has
-seen. It uses a dead band of about 12 counts around the centre. Snoop37 2.6.4 also teaches the wheels in the
-hardware calibration (pitch: rest, full down, full up; mod: bottom, full up), for the full range on the full travel.
+Ход короткий и различается между экземплярами. Эталонный порт калибруется сам: он принимает центр питча при
+включении питания, позволяет центру следовать медленному дрейфу, пока колесо в покое, и расширяет каждый диапазон до крайних значений,
+которые наблюдал. Использует мёртвую зону около 12 отсчётов вокруг центра. Snoop37 2.6.4 также обучает колёса в
+аппаратной калибровке (pitch: покой, до упора вниз, до упора вверх; mod: нижний конец, до упора вверх) для полного диапазона на полном ходе.
 
-### 6.6 Pedal and battery
+### 6.6 Педаль и батарея
 
-- **Pedal**: mux C address 6. It reads about 985 with nothing plugged in. The stock firmware inverts it and maps it
-  through the extra 5-point curve in the calibration record. No plug-detect pin was found. Status: analysis.
-- **Battery**: mux C address 7. The stock level thresholds are raw 530, 560 and 602 (4 levels). The divider ratio
-  is open.
+- **Педаль**: адрес 6 mux C. Читает около 985, когда ничего не подключено. Штатная прошивка инвертирует её и отображает
+  через дополнительную 5-точечную кривую в записи калибровки. Вывод определения подключения не найден. Статус: анализ.
+- **Батарея**: адрес 7 mux C. Штатные пороги уровня — сырые 530, 560 и 602 (4 уровня). Коэффициент делителя
+  неизвестен.
 
-## 7. Power
+## 7. Питание
 
-| Item | SMK-37 | Status |
+| Параметр | SMK-37 | Статус |
 |---|---|---|
-| Power switch | a hard slide switch. There is **no soft power latch**, so the firmware does not need to drive any pin to stay on. | analysis |
-| Charger status | **PB1** input, low = charging. | analysis |
-| Reset pin | PB1 held low for 8 s resets the chip (boot config, same as the FM-1) | analysis |
-| Low-battery "off" | the stock firmware stops the scan, blanks the pads and shows LOW BATTERY. It is a quiet state, not a power-off. | analysis |
+| Выключатель питания | жёсткий тумблер. **Мягкой защёлки питания нет**, поэтому прошивке не нужно управлять каким-либо выводом, чтобы оставаться включённой. | анализ |
+| Статус зарядки | вход **PB1**, низкий = идёт зарядка. | анализ |
+| Вывод сброса | PB1 в низком уровне 8 с сбрасывает чип (конфигурация загрузки, та же, что у FM-1) | анализ |
+| «Выключение» при разряде | штатная прошивка останавливает скан, гасит пэды и показывает LOW BATTERY. Это тихое состояние, а не выключение питания. | анализ |
 
-**Never drive PB1 and never enable its pull-down.** Do not copy the FM-1's ADC init, which uses PB1 as a battery
+**Никогда не управляйте PB1 и никогда не включайте его подтяжку к земле.** Не копируйте инициализацию АЦП FM-1, где PB1 используется как канал батареи.
 channel.
 
-## 8. Audio
+## 8. Звук
 
-The audio path (DAC, output stage, sample rate setup) is the same as on the FM-1. The reference port needed no
-change to the audio driver, and the synth engines run unchanged. Status: **verified**.
+Аудио тракт (ЦАП, выходной каскад, настройка частоты дискретизации) такой же, как на FM-1. Эталонному порту не потребовалось
+менять аудиодрайвер, и синтезаторные движки работают без изменений. Статус: **проверено**.
 
 ## 9. MIDI
 
-| Item | SMK-37 | FM-1 | Status |
+| Параметр | SMK-37 | FM-1 | Статус |
 |---|---|---|---|
-| TRS jack | **MIDI OUT** | MIDI IN | analysis |
-| UART | UART1 (`0x12100`), **transmit only** | UART1, receive on PH8 | analysis |
-| Pin | **PC7** | PH8 | analysis |
-| Baud | 31250, from the 48 MHz UART clock (BAUD register 383) | same formula | analysis |
-| USB MIDI | class-compliant, as on the FM-1 | | **verified** |
+| TRS-джек | **MIDI OUT** | MIDI IN | анализ |
+| UART | UART1 (`0x12100`), **только передача** | UART1, приём на PH8 | анализ |
+| Вывод | **PC7** | PH8 | анализ |
+| Скорость | 31250, из тактовой частоты UART 48 МГц (регистр BAUD = 383) | та же формула | анализ |
+| USB MIDI | class-compliant, как на FM-1 | | **проверено** |
 
-**Disable the FM-1's TRS MIDI IN driver.** PH8 is a key-matrix row on the SMK-37. The reference port forces
-the UART option off for this board and fails the build if it is switched on.
+**Отключите драйвер TRS MIDI IN FM-1.** PH8 на SMK-37 — строка клавиатурной матрицы. Эталонный порт принудительно
+выключает опцию UART для этой платы и валит сборку, если она включена.
 
-MIDI OUT on PC7 (stock setup, from the v016 init): `IOMAP_CON3` bit 7 clear, bits [23:20] = 1 (UT1 TX onto an output
-channel); PC7 pull-up and pull-down set, output low, input enabled; UART1 `CON0` = 0x3400 (pendings cleared), the
-baud, then UTEN, no RX. A byte: set `CON0` bit 13 (clear TPND), write `BUF` (`0x1210C`); `CON0` bit 15 (TPND) is set
-when it has gone. Snoop37 2.6.4 has a driver built this way (status: analysis, not yet confirmed on a unit). The
-jack is listed as **type A** in a community spec sheet; M-Vave's manual only says "a 3.5 mm to MIDI adapter" (not
+MIDI OUT на PC7 (штатная настройка, из инициализации v016): бит 7 `IOMAP_CON3` сброшен, биты [23:20] = 1 (UT1 TX на выходной
+канал); подтяжки PC7 pull-up и pull-down установлены, выход в низкий уровень, вход разрешён; UART1 `CON0` = 0x3400 (pending-флаги сброшены), baud,
+затем UTEN, без RX. Байт: установить бит 13 `CON0` (сброс TPND), записать `BUF` (`0x1210C`); бит 15 `CON0` (TPND) встаёт,
+когда байт ушёл. Snoop37 2.6.4 содержит драйвер, построенный так (статус: анализ, ещё не подтверждён на экземпляре). Джек указан как
+**тип A** в спецификации сообщества; руководство M-Vave говорит лишь «адаптер с 3,5 мм на MIDI» (не измерено).
 measured).
 
 ## 10. USB
 
-| Item | SMK-37 Pro | FM-1 |
+| Параметр | SMK-37 Pro | FM-1 |
 |---|---|---|
-| Stock VID:PID (analysis) | 4353:B64B | 4C4A:C755 |
-| Stock strings | "SMK-37 Pro Midi", "SMK-37 Pro Audio" and others | "FM-1 Midi", "FM-1 Audio" |
-| Stock update loader | 4D4A:4155, name from the update record | same |
-| Mask-ROM bootloader | `WL82 UBOOT1.00`, 4C4A:8057, USB mass storage (**verified**) | same |
+| Штатные VID:PID (анализ) | 4353:B64B | 4C4A:C755 |
+| Штатные строки | "SMK-37 Pro Midi", "SMK-37 Pro Audio" и другие | "FM-1 Midi", "FM-1 Audio" |
+| Штатный загрузчик обновлений | 4D4A:4155, имя из записи обновления | то же |
+| Загрузчик mask-ROM | `WL82 UBOOT1.00`, 4C4A:8057, USB mass storage (**проверено**) | то же |
 
-Felucca-family firmware brings its own USB descriptors (VID/PID, audio, MIDI, serial). They work unchanged on the
-SMK-37 (**verified**). Host tools that look for the device by port name must also accept names containing
+Прошивки семейства Felucca привозят собственные дескрипторы USB (VID/PID, аудио, MIDI, серийный номер). Они работают без изменений на
+SMK-37 (**проверено**). Хостовые инструменты, ищущие устройство по имени порта, должны также принимать имена, содержащие
 `SMK`.
 
-## 11. Identity and update
+## 11. Идентичность и обновление
 
-| Item | SMK-37 Pro | FM-1 |
+| Параметр | SMK-37 Pro | FM-1 |
 |---|---|---|
-| Stock identity (SysEx and package) | `SMK-37 Pro_016` (14 characters) | `FM-1_015` |
-| Identity of a custom build | `SMK-37 Pro_9XY` (reference port) | `FM-1_9XY` |
-| Recovery identity | `SMK-37 Pro_000` | `FM-1_000` |
-| Name in the update record | `ota-SMK-37 Pro_016` (18 bytes, zero padded) | `ota-FM-1_015` |
-| Package container | **36 interleave blocks** (stock v016) | 20 blocks |
+| Штатная идентичность (SysEx и пакет) | `SMK-37 Pro_016` (14 символов) | `FM-1_015` |
+| Идентичность пользовательской сборки | `SMK-37 Pro_9XY` (эталонный порт) | `FM-1_9XY` |
+| Идентичность восстановления | `SMK-37 Pro_000` | `FM-1_000` |
+| Имя в записи обновления | `ota-SMK-37 Pro_016` (18 байт, дополнение нулями) | `ota-FM-1_015` |
+| Контейнер пакета | **36 блоков чередования** (штатный v016) | 20 блоков |
 
-Details are in [02-update-and-recovery.md](02-update-and-recovery.md).
+Подробности в [02-update-and-recovery.md](02-update-and-recovery.md).
 
-## 12. Summary: what a port changes
+## 12. Итог: что меняет порт
 
-| Area | FM-1 code | SMK-37 change |
+| Область | Код FM-1 | Изменение для SMK-37 |
 |---|---|---|
-| Board switch | none | one compile-time flag (`BOARD_SMK37`) so that the FM-1 build stays byte-identical |
-| Input | 2 x 595 bit-banged, 11 x 6 matrix, 27 keys, 7 encoders, 4 LED lines | new input HAL: SPI2 DMA, 16 x 8 matrix, 37 velocity keys, 18 buttons, 8 encoders, 19 LEDs, muxed ADC with pads, faders, wheels |
-| ADC | polled MASTER pot and battery | through the muxes, stock SMK timing. MASTER becomes a virtual pot on an encoder. |
-| Display | SPI1 group B, CS PC7, D/C PC8, backlight PA2 | SPI1 group A, CS PC8, D/C PB5, no backlight pin, SMK init table |
-| Key LEDs | 27 key LEDs | 16 RGB pads on SPI1 group B, shared with the LCD |
-| Flash | FM-1 map, JEDEC 0x856014 | SMK map with protected ranges, JEDEC 0xEB6014 added |
-| Update | identity `FM-1_9xx`, 20-block packages | identity `SMK-37 Pro_9xx`, update record name `ota-SMK-37 Pro_016`, 36-block stock packages |
-| MIDI | TRS IN on PH8 | off (PH8 is a matrix row). TRS OUT on PC7 (UART1 TX; Snoop37 2.6.4, unconfirmed on a unit). |
-| Audio, USB, engines | | unchanged |
+| Переключатель платы | отсутствует | один флаг компиляции (`BOARD_SMK37`), чтобы сборка FM-1 оставалась побайтово идентичной |
+| Ввод | 2 x 595 методом bit-bang, матрица 11 x 6, 27 клавиш, 7 энкодеров, 4 линии светодиодов | новый HAL ввода: DMA SPI2, матрица 16 x 8, 37 клавиш с velocity, 18 кнопок, 8 энкодеров, 19 светодиодов, мультиплексированный АЦП с пэдами, фейдерами, колёсами |
+| АЦП | опрос потенциометра MASTER и батареи | через мультиплексоры, штатный тайминг SMK. MASTER становится виртуальной ручкой на энкодере. |
+| Дисплей | SPI1 группа B, CS PC7, D/C PC8, подсветка PA2 | SPI1 группа A, CS PC8, D/C PB5, без вывода подсветки, таблица инициализации SMK |
+| Светодиоды клавиш | 27 светодиодов клавиш | 16 RGB-пэдов на SPI1 группе B, разделённом с ЖК |
+| Флеш | карта FM-1, JEDEC 0x856014 | карта SMK с защищёнными диапазонами, добавлен JEDEC 0xEB6014 |
+| Обновление | идентичность `FM-1_9xx`, пакеты из 20 блоков | идентичность `SMK-37 Pro_9xx`, имя записи обновления `ota-SMK-37 Pro_016`, штатные пакеты из 36 блоков |
+| MIDI | TRS IN на PH8 | выключен (PH8 — строка матрицы). TRS OUT на PC7 (UART1 TX; Snoop37 2.6.4, не подтверждено на экземпляре). |
+| Аудио, USB, движки | | без изменений |
